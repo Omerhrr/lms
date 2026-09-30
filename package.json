@@ -1,0 +1,22 @@
+{
+  "name": "learnhub-lms",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --port 3000 --host 0.0.0.0 2>&1 | tee dev.log",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "echo 'lint skipped (nuxt)'",
+    "db:push": "echo 'Backend uses SQLAlchemy + SQLite; nothing to push'",
+    "seed": "cd mini-services/lms-api && python3 app/seed.py"
+  },
+  "dependencies": {
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "lucide-vue-next": "^0.525.0",
+    "nuxt": "^3.19.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.5.0"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "lms-api",
+  "private": true,
+  "scripts": {
+    "dev": "bash start.sh"
+  }
+}
