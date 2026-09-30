@@ -4,6 +4,12 @@ export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss'],
   css: ['~/assets/css/main.css'],
   devServer: { host: '0.0.0.0', port: 3000 },
+  // Allow preview/proxy hostnames (Vite blocks unknown Host headers by default)
+  vite: {
+    server: {
+      allowedHosts: true
+    }
+  },
   // Proxy all /api/* calls to the FastAPI modular-monolith backend (port 8000)
   routeRules: {
     '/api/**': { proxy: 'http://127.0.0.1:8000/api/**' }
