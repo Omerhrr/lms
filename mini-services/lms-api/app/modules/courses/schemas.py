@@ -72,7 +72,7 @@ class LessonOut(BaseModel):
 
 
 class LessonPublicOut(BaseModel):
-    """Curriculum view for students — hides lesson body until enrolled."""
+    """Curriculum view for students - hides lesson body until enrolled."""
     model_config = ConfigDict(from_attributes=True)
 
     id: int

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ClipboardList } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Gradebook — LearnHub' })
+useSeoMeta({ title: 'Gradebook - LearnHub' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const route = useRoute()
@@ -91,7 +91,7 @@ const grade = async () => {
                 </span>
                 <span class="text-[10px] text-slate-400 ml-1">({{ q.attempts }}×)</span>
               </template>
-              <span v-else class="text-slate-300 text-xs">—</span>
+              <span v-else class="text-slate-300 text-xs">-</span>
             </td>
             <td v-for="a in row.assignments" :key="'a' + a.assignment_id">
               <button v-if="a.submission_id" @click="openGrading(row, a)"
@@ -99,7 +99,7 @@ const grade = async () => {
                 :class="a.status === 'graded' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'">
                 {{ a.status === 'graded' ? `${a.grade}/${Math.round(a.max_points)}` : 'grade me →' }}
               </button>
-              <span v-else class="text-slate-300 text-xs">—</span>
+              <span v-else class="text-slate-300 text-xs">-</span>
             </td>
           </tr>
         </tbody>
@@ -128,7 +128,7 @@ const grade = async () => {
           </div>
           <div class="sm:col-span-2">
             <label class="label">Feedback</label>
-            <input v-model="gradeForm.feedback" class="input" placeholder="Great work — watch the edge cases…" />
+            <input v-model="gradeForm.feedback" class="input" placeholder="Great work - watch the edge cases…" />
           </div>
         </div>
       </div>

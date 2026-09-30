@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Plus, Search } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'My courses — LearnHub' })
+useSeoMeta({ title: 'My courses - LearnHub' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const api = useApi()

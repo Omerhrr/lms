@@ -73,7 +73,7 @@ const toggleComplete = async () => {
     if (done) completedIds.value.delete(currentLesson.value.id)
     else completedIds.value.add(currentLesson.value.id)
     enrollment.value.progress = res.progress
-    if (!done) show(`Progress: ${res.progress}%${res.status === 'completed' ? ' — course completed! 🎓' : ''}`)
+    if (!done) show(`Progress: ${res.progress}%${res.status === 'completed' ? ' - course completed! 🎓' : ''}`)
   } catch (e: any) { show(e?.data?.detail || 'Failed to update', 'error') }
 }
 

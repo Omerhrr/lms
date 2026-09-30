@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { BookOpen, Trophy, Flame, TrendingUp, PlayCircle, Clock } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'My Learning — LearnHub' })
+useSeoMeta({ title: 'My Learning - LearnHub' })
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
 const api = useApi()

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Award, ExternalLink } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'My Certificates — LearnHub' })
+useSeoMeta({ title: 'My Certificates - LearnHub' })
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
 const api = useApi()

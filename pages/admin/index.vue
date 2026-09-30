@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Users, BookOpen, GraduationCap, DollarSign, ShieldCheck, Briefcase, User as UserIcon } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Admin — LearnHub' })
+useSeoMeta({ title: 'Admin - LearnHub' })
 definePageMeta({ middleware: 'admin', layout: 'dashboard' })
 
 const api = useApi()

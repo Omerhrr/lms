@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ShieldCheck, Search } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Verify a certificate — LearnHub' })
+useSeoMeta({ title: 'Verify a certificate - LearnHub' })
 definePageMeta({ layout: 'default' })
 
 const api = useApi()

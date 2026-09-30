@@ -4,7 +4,7 @@ import {
   BarChart3, Save, X, Pencil, HelpCircle, ListPlus, GraduationCap
 } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Curriculum builder — LearnHub' })
+useSeoMeta({ title: 'Curriculum builder - LearnHub' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const route = useRoute()
@@ -100,7 +100,7 @@ const deleteLesson = async (id: number) => {
 const openQuiz = async (lesson: any) => {
   quizModal.value = { open: true, lesson }
   quiz.value = null
-  // find existing quiz for this lesson via teach quiz lookup: we don't have quiz id on lesson; use a lightweight trick — the gradebook API exposes quiz ids, but simpler: try fetching via course editor data endpoint? Instead: attempt GET /teach/quizzes/{id} is unknown; use attempt discovery via lesson-scoped endpoint below.
+  // find existing quiz for this lesson via teach quiz lookup: we don't have quiz id on lesson; use a lightweight trick - the gradebook API exposes quiz ids, but simpler: try fetching via course editor data endpoint? Instead: attempt GET /teach/quizzes/{id} is unknown; use attempt discovery via lesson-scoped endpoint below.
   try {
     const res = await api.get<any>(`/teach/lessons/${lesson.id}/quiz`)
     quiz.value = res
@@ -186,7 +186,7 @@ const letter = (i: number) => String.fromCharCode(65 + i)
   <div>
     <div class="mb-6">
       <h1 class="text-2xl font-extrabold text-slate-900">Curriculum builder</h1>
-      <p class="text-slate-500 mt-1">{{ course?.title }} — {{ course?.lesson_count }} lessons · {{ course?.sections.length }} sections</p>
+      <p class="text-slate-500 mt-1">{{ course?.title }} - {{ course?.lesson_count }} lessons · {{ course?.sections.length }} sections</p>
     </div>
 
     <div v-if="loading" class="space-y-4"><div v-for="i in 3" :key="i" class="card h-16 animate-pulse" /></div>

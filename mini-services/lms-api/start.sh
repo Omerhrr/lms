@@ -1,5 +1,5 @@
 #!/bin/bash
-# LearnHub LMS — FastAPI backend launcher (modular monolith)
+# LearnHub LMS - FastAPI backend launcher (modular monolith)
 cd "$(dirname "$0")"
 
 PY=python3

@@ -103,7 +103,7 @@ onMounted(load)
           class="w-14 h-14 mx-auto mb-3" :class="result.passed ? 'text-brand-500' : 'text-rose-400'" />
         <div class="text-5xl font-extrabold" :class="result.passed ? 'text-brand-600' : 'text-rose-600'">{{ result.score }}%</div>
         <p class="mt-2 font-semibold" :class="result.passed ? 'text-brand-700' : 'text-rose-700'">
-          {{ result.passed ? 'Passed — great job!' : `You need ${result.passing_score}% to pass` }}
+          {{ result.passed ? 'Passed - great job!' : `You need ${result.passing_score}% to pass` }}
         </p>
         <div v-if="!result.passed" class="mt-4">
           <button @click="retry" class="btn-secondary inline-flex"><RotateCcw class="w-4 h-4" /> Try again</button>

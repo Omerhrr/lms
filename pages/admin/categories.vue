@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { FolderTree, Plus, Pencil, Trash2 } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Categories — LearnHub' })
+useSeoMeta({ title: 'Categories - LearnHub' })
 definePageMeta({ middleware: 'admin', layout: 'dashboard' })
 
 const api = useApi()

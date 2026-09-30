@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'New course — LearnHub' })
+useSeoMeta({ title: 'New course - LearnHub' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const api = useApi()
@@ -25,7 +25,7 @@ const submit = async () => {
       tags: form.value.tags.split(',').map(t => t.trim()).filter(Boolean),
       price: Number(form.value.price),
     })
-    show('Course created — build your curriculum next!')
+    show('Course created - build your curriculum next!')
     router.push(`/teach/courses/${res.id}/builder`)
   } catch (e: any) {
     show(e?.data?.detail || 'Could not create course', 'error')
@@ -53,7 +53,7 @@ const submit = async () => {
         <div>
           <label class="label">Category</label>
           <select v-model="form.category_id" class="input">
-            <option :value="null">— None —</option>
+            <option :value="null">- None -</option>
             <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
         </div>

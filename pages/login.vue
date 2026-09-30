@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { LogIn, ShieldCheck } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Sign in — LearnHub' })
+useSeoMeta({ title: 'Sign in - LearnHub' })
 definePageMeta({ middleware: 'guest' })
 
 const auth = useAuth()

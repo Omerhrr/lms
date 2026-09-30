@@ -34,8 +34,8 @@ def my_certificates(db: Session = Depends(get_db), user: User = Depends(any_user
 
 @router.get("/certificates/{serial}")
 def verify_certificate(serial: str, db: Session = Depends(get_db)):
-    """Public verification endpoint — no auth required."""
+    """Public verification endpoint - no auth required."""
     cert = db.query(Certificate).filter(Certificate.serial == serial.upper()).first()
     if not cert:
-        raise HTTPException(404, "Certificate not found — please check the serial number")
+        raise HTTPException(404, "Certificate not found - please check the serial number")
     return _cert_dict(cert)

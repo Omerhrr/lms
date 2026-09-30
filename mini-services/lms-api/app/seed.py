@@ -80,7 +80,7 @@ def main():
     c1 = m_course.Course(
         title="Python Programming: Zero to Hero",
         slug="python-programming-zero-to-hero",
-        summary="Master Python from the very basics to building real applications — no prior experience needed.",
+        summary="Master Python from the very basics to building real applications - no prior experience needed.",
         description=(
             "<h2>Why this course?</h2>"
             "<p>Python is the most beginner-friendly, in-demand programming language in the world. "
@@ -111,9 +111,9 @@ def main():
     l2 = m_course.Lesson(section_id=s1.id, course_id=c1.id, title="Installing Python & Your Editor", type=m_course.LessonType.video,
                          video_url="https://www.youtube.com/embed/rfscVS0vtbw", duration_minutes=9, is_preview=True, position=1)
     l3 = m_course.Lesson(section_id=s2.id, course_id=c1.id, title="Variables & Data Types", type=m_course.LessonType.text,
-                         content="Variables are containers for storing data values.\n\n## Core data types\n- int — whole numbers (42)\n- float — decimals (3.14)\n- str — text (\"hello\")\n- bool — True / False\n\nPython is dynamically typed, so you never declare a type explicitly — the interpreter figures it out.\n\nname = \"Ada\"\nage = 36\npi = 3.14159", duration_minutes=12, position=0)
+                         content="Variables are containers for storing data values.\n\n## Core data types\n- int - whole numbers (42)\n- float - decimals (3.14)\n- str - text (\"hello\")\n- bool - True / False\n\nPython is dynamically typed, so you never declare a type explicitly - the interpreter figures it out.\n\nname = \"Ada\"\nage = 36\npi = 3.14159", duration_minutes=12, position=0)
     l4 = m_course.Lesson(section_id=s2.id, course_id=c1.id, title="Control Flow: If, Elif, Else", type=m_course.LessonType.text,
-                         content="Programs make decisions using conditional statements.\n\nscore = 85\nif score >= 90:\n    print(\"A\")\nelif score >= 80:\n    print(\"B\")\nelse:\n    print(\"Keep practicing!\")\n\nIndentation matters in Python — it defines code blocks.", duration_minutes=11, position=1)
+                         content="Programs make decisions using conditional statements.\n\nscore = 85\nif score >= 90:\n    print(\"A\")\nelif score >= 80:\n    print(\"B\")\nelse:\n    print(\"Keep practicing!\")\n\nIndentation matters in Python - it defines code blocks.", duration_minutes=11, position=1)
     l5 = m_course.Lesson(section_id=s2.id, course_id=c1.id, title="Fundamentals Check-up", type=m_course.LessonType.quiz,
                          duration_minutes=10, position=2)
     l6 = m_course.Lesson(section_id=s3.id, course_id=c1.id, title="Functions & Reusable Code", type=m_course.LessonType.video,
@@ -132,7 +132,7 @@ def main():
     q2 = m_assess.Question(quiz_id=quiz1.id, type=m_assess.QuestionType.true_false,
                            text="Python requires you to declare the type of a variable before using it.",
                            options=["True", "False"], correct=[1], points=1,
-                           explanation="Python is dynamically typed — no declaration needed.", position=1)
+                           explanation="Python is dynamically typed - no declaration needed.", position=1)
     q3 = m_assess.Question(quiz_id=quiz1.id, type=m_assess.QuestionType.multi_choice,
                            text="Which of the following are valid Python variable names?",
                            options=["my_var", "2cool", "_hidden", "class"], correct=[0, 2], points=2,
@@ -211,7 +211,7 @@ def main():
     ds1 = m_course.Section(course_id=c3.id, title="Foundations", position=0)
     db.add(ds1); db.commit()
     dl1 = m_course.Lesson(section_id=ds1.id, course_id=c3.id, title="What Makes Design 'Good'?", type=m_course.LessonType.text,
-                          content="Good design is invisible. Users don't notice it — they just accomplish their goals.\n\n## The four pillars\n- Clarity: users instantly understand\n- Consistency: similar things look and behave similarly\n- Feedback: every action has a visible reaction\n- Simplicity: remove everything that doesn't help", duration_minutes=7, is_preview=True, position=0)
+                          content="Good design is invisible. Users don't notice it - they just accomplish their goals.\n\n## The four pillars\n- Clarity: users instantly understand\n- Consistency: similar things look and behave similarly\n- Feedback: every action has a visible reaction\n- Simplicity: remove everything that doesn't help", duration_minutes=7, is_preview=True, position=0)
     dl2 = m_course.Lesson(section_id=ds1.id, course_id=c3.id, title="Typography & Spacing Systems", type=m_course.LessonType.video,
                           video_url="https://www.youtube.com/embed/_6jK-2nHc1M", duration_minutes=12, position=1)
     dl3 = m_course.Lesson(section_id=ds1.id, course_id=c3.id, title="Design Principles Quiz", type=m_course.LessonType.quiz, duration_minutes=6, position=2)
@@ -237,7 +237,7 @@ def main():
     xs1 = m_course.Section(course_id=c4.id, title="Spreadsheet Basics", position=0)
     db.add(xs1); db.commit()
     xl1 = m_course.Lesson(section_id=xs1.id, course_id=c4.id, title="Formulas Every Analyst Needs", type=m_course.LessonType.text,
-                          content="SUM, AVERAGE, VLOOKUP, INDEX/MATCH and friends — the daily toolkit of every analyst.", duration_minutes=10, position=0)
+                          content="SUM, AVERAGE, VLOOKUP, INDEX/MATCH and friends - the daily toolkit of every analyst.", duration_minutes=10, position=0)
     db.add(xl1); db.commit()
 
     # ---------- enrollments & progress ----------
@@ -247,38 +247,38 @@ def main():
         db.add(e); db.commit(); db.refresh(e)
         return e
 
-    e1 = enroll(c1, students[0], 20)   # Michael — python, 40%
+    e1 = enroll(c1, students[0], 20)   # Michael - python, 40%
     for lid in [l1.id, l2.id, l3.id]:
         db.add(m_enroll.LessonProgress(enrollment_id=e1.id, lesson_id=lid))
     e1.progress = round(3 / 7 * 100, 1)
     db.commit()
 
-    e2 = enroll(c1, students[1], 35)   # Emma — python, completed
+    e2 = enroll(c1, students[1], 35)   # Emma - python, completed
     for lid in [l1.id, l2.id, l3.id, l4.id, l5.id, l6.id, l7.id]:
         db.add(m_enroll.LessonProgress(enrollment_id=e2.id, lesson_id=lid))
     e2.progress = 100.0; e2.status = "completed"; e2.completed_at = now - timedelta(days=2)
     db.commit()
 
-    e3 = enroll(c2, students[1], 10)   # Emma — marketing 25%
+    e3 = enroll(c2, students[1], 10)   # Emma - marketing 25%
     for lid in [ml1.id]:
         db.add(m_enroll.LessonProgress(enrollment_id=e3.id, lesson_id=lid))
     e3.progress = round(1 / 4 * 100, 1)
     db.commit()
 
-    e4 = enroll(c3, students[2], 8)    # Liam — design 33%
+    e4 = enroll(c3, students[2], 8)    # Liam - design 33%
     for lid in [dl1.id]:
         db.add(m_enroll.LessonProgress(enrollment_id=e4.id, lesson_id=lid))
     e4.progress = round(1 / 3 * 100, 1)
     db.commit()
 
-    e5 = enroll(c3, students[3], 15)   # Olivia — design completed
+    e5 = enroll(c3, students[3], 15)   # Olivia - design completed
     for lid in [dl1.id, dl2.id, dl3.id]:
         db.add(m_enroll.LessonProgress(enrollment_id=e5.id, lesson_id=lid))
     e5.progress = 100.0; e5.status = "completed"; e5.completed_at = now - timedelta(days=1)
     db.commit()
 
-    e6 = enroll(c2, students[4], 3)    # Noah — marketing, just started
-    e7 = enroll(c1, students[2], 12)   # Liam — python, 14%
+    e6 = enroll(c2, students[4], 3)    # Noah - marketing, just started
+    e7 = enroll(c1, students[2], 12)   # Liam - python, 14%
     db.add(m_enroll.LessonProgress(enrollment_id=e7.id, lesson_id=l1.id))
     e7.progress = round(1 / 7 * 100, 1)
     db.commit()
@@ -318,7 +318,7 @@ def main():
     p1 = m_disc.Post(thread_id=t1.id, author_id=sarah.id,
                      body="Great question! Wrap the input in a try/except block:\n\ntry:\n    guess = int(input())\nexcept ValueError:\n    print('Please enter a number')", created_at=now - timedelta(days=2))
     p2 = m_disc.Post(thread_id=t1.id, author_id=students[0].id, parent_id=p1.id,
-                     body="That fixed it — thank you so much! 🙌", created_at=now - timedelta(days=1))
+                     body="That fixed it - thank you so much! 🙌", created_at=now - timedelta(days=1))
     db.add_all([p1, p2])
     t2 = m_disc.Thread(course_id=c1.id, author_id=students[2].id, title="Study group for this course?",
                        body="Anyone want to review the fundamentals section together this weekend?", created_at=now - timedelta(days=3))
@@ -331,7 +331,7 @@ def main():
                                 created_at=now - timedelta(days=4)))
     db.add(m_notif.Announcement(course_id=c2.id, author_id=james.id,
                                 title="Live Q&A session this Friday",
-                                body="Bring your questions about SEO — we'll do a 60-minute live teardown of student websites.",
+                                body="Bring your questions about SEO - we'll do a 60-minute live teardown of student websites.",
                                 created_at=now - timedelta(days=2)))
     db.commit()
 

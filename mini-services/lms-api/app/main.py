@@ -1,5 +1,5 @@
 """
-LearnHub LMS — FastAPI backend (modular monolith).
+LearnHub LMS - FastAPI backend (modular monolith).
 
 Each business module lives in app/modules/<name> and owns its:
 models / schemas / service / router. Cross-module features call each

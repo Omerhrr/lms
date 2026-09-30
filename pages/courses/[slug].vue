@@ -203,7 +203,7 @@ watch(() => route.params.slug, load)
             <li class="flex justify-between"><span class="text-slate-400">Language</span><b>{{ course.language }}</b></li>
             <li class="flex justify-between"><span class="text-slate-400">Lessons</span><b>{{ course.lesson_count }}</b></li>
             <li class="flex justify-between"><span class="text-slate-400">Duration</span><b>{{ Math.round(course.total_minutes / 60 * 10) / 10 }} hours</b></li>
-            <li class="flex justify-between"><span class="text-slate-400">Category</span><b>{{ course.category?.name || '—' }}</b></li>
+            <li class="flex justify-between"><span class="text-slate-400">Category</span><b>{{ course.category?.name || '-' }}</b></li>
           </ul>
           <div v-if="course.tags?.length" class="mt-4 flex flex-wrap gap-1.5">
             <span v-for="t in course.tags" :key="t" class="badge bg-slate-100 text-slate-600">#{{ t }}</span>
@@ -244,7 +244,7 @@ watch(() => route.params.slug, load)
           <textarea v-model="threadForm.body" class="input min-h-[80px]" placeholder="Describe your question…" />
           <button class="btn-primary mt-3" :disabled="posting" @click="createThread">{{ posting ? 'Posting…' : 'Post question' }}</button>
         </div>
-        <EmptyState v-if="threads.length === 0" empty>No discussions yet — be the first to ask!</EmptyState>
+        <EmptyState v-if="threads.length === 0" empty>No discussions yet - be the first to ask!</EmptyState>
         <NuxtLink v-for="t in threads" :key="t.id" :to="`/courses/${course.slug}?tab=discussion`"
           @click.prevent="tab = 'discussion'"
           class="card p-4 flex items-start gap-4 hover:border-brand-300 transition cursor-pointer">

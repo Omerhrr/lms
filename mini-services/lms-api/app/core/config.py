@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     RESET_TOKEN_EXPIRE_MINUTES: int = 30
     PASSWORD_MIN_LENGTH: int = 6
 
-    # Database — swap to postgresql://... for production; schema is portable
+    # Database - swap to postgresql://... for production; schema is portable
     LMS_DATABASE_URL: str = "sqlite:///./data/lms.db"
 
     # Uploads

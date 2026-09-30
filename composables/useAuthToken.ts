@@ -2,7 +2,7 @@
  * Single source of truth for auth tokens.
  *
  * Why: Nuxt's useCookie ref writes are flushed to document.cookie
- * asynchronously, which races with client-side navigation — a fresh
+ * asynchronously, which races with client-side navigation - a fresh
  * page's cookie ref can read a stale (empty) value and lose the token.
  * We keep an in-memory useState as the runtime SSOT and mirror every
  * write to document.cookie synchronously.

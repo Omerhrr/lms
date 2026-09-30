@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Search, ArrowRight, Sparkles, BookOpen, Users, GraduationCap, Trophy, CheckCircle2 } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'LearnHub — Learn anything, teach everything' })
+useSeoMeta({ title: 'LearnHub - Learn anything, teach everything' })
 
 const api = useApi()
 const auth = useAuth()
@@ -46,7 +46,7 @@ onMounted(async () => {
             <span class="text-brand-400">Teach everything.</span>
           </h1>
           <p class="mt-5 text-lg text-slate-300 max-w-xl leading-relaxed">
-            LearnHub is a full-featured learning management system — video lessons, quizzes with auto-grading,
+            LearnHub is a full-featured learning management system - video lessons, quizzes with auto-grading,
             assignments, discussions, certificates and analytics. All in one place.
           </p>
           <div class="mt-8 flex flex-wrap gap-3">
@@ -78,7 +78,7 @@ onMounted(async () => {
             </div>
             <div class="space-y-2.5 text-sm">
               <div class="flex items-center gap-2.5 text-slate-600"><CheckCircle2 class="w-4.5 h-4.5 text-brand-500" /> Variables & data types</div>
-              <div class="flex items-center gap-2.5 text-slate-600"><CheckCircle2 class="w-4.5 h-4.5 text-brand-500" /> Control flow quiz — <b class="text-brand-600">85%</b></div>
+              <div class="flex items-center gap-2.5 text-slate-600"><CheckCircle2 class="w-4.5 h-4.5 text-brand-500" /> Control flow quiz - <b class="text-brand-600">85%</b></div>
               <div class="flex items-center gap-2.5 text-slate-400"><div class="w-4.5 h-4.5 rounded-full border-2 border-slate-300" /> Functions & reusable code</div>
               <div class="flex items-center gap-2.5 text-slate-400"><Trophy class="w-4.5 h-4.5 text-amber-400" /> Certificate on completion</div>
             </div>
@@ -121,7 +121,7 @@ onMounted(async () => {
     <section class="bg-white border-y border-slate-200">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
         <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 text-center">Everything a modern LMS needs</h2>
-        <p class="text-center text-slate-500 mt-2 max-w-2xl mx-auto">Built on a modular monolith — FastAPI + SQLAlchemy backend, Nuxt frontend — ready to grow into SaaS.</p>
+        <p class="text-center text-slate-500 mt-2 max-w-2xl mx-auto">Built on a modular monolith - FastAPI + SQLAlchemy backend, Nuxt frontend - ready to grow into SaaS.</p>
         <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <div class="card p-5"><BookOpen class="w-8 h-8 text-brand-600 mb-3" /><h3 class="font-bold">Course builder</h3><p class="text-sm text-slate-500 mt-1">Sections, video/text/file lessons, quizzes and resources with drag-free reordering.</p></div>
           <div class="card p-5"><Users class="w-8 h-8 text-brand-600 mb-3" /><h3 class="font-bold">Enrollment & progress</h3><p class="text-sm text-slate-500 mt-1">One-click enrollment, per-lesson completion tracking and live progress bars.</p></div>
@@ -135,7 +135,7 @@ onMounted(async () => {
     <section class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
       <div class="rounded-3xl bg-gradient-to-r from-brand-600 to-brand-800 text-white p-10 text-center">
         <h2 class="text-2xl sm:text-3xl font-extrabold">Ready to start learning?</h2>
-        <p class="mt-2 text-brand-100">Join LearnHub today — demo accounts are available on the sign-in page.</p>
+        <p class="mt-2 text-brand-100">Join LearnHub today - demo accounts are available on the sign-in page.</p>
         <div class="mt-6 flex justify-center gap-3 flex-wrap">
           <NuxtLink to="/register" class="btn bg-white text-brand-800 hover:bg-brand-50 px-6">Create free account</NuxtLink>
           <NuxtLink to="/courses" class="btn border border-white/40 text-white hover:bg-white/10 px-6"><Search class="w-4 h-4" /> Explore courses</NuxtLink>

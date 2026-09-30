@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Megaphone, Trash2, Send } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Announcements — LearnHub' })
+useSeoMeta({ title: 'Announcements - LearnHub' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const route = useRoute()
@@ -53,7 +53,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 's
         <Megaphone class="w-4.5 h-4.5 text-amber-500" />
         <h2 class="font-bold text-slate-800 text-sm">New announcement</h2>
       </div>
-      <input v-model="form.title" class="input mb-2" placeholder="Title — e.g. Live Q&A this Friday" />
+      <input v-model="form.title" class="input mb-2" placeholder="Title - e.g. Live Q&A this Friday" />
       <textarea v-model="form.body" class="input min-h-[90px]" placeholder="Details your students should know…" />
       <button class="btn-primary mt-3" :disabled="posting" @click="post">
         <Send class="w-4 h-4" /> {{ posting ? 'Publishing…' : 'Publish announcement' }}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { BookOpen, Users, Trophy, DollarSign, Plus, TrendingUp } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Instructor Studio — LearnHub' })
+useSeoMeta({ title: 'Instructor Studio - LearnHub' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const api = useApi()
@@ -70,7 +70,7 @@ const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
             <td class="font-semibold">${{ c.revenue?.toLocaleString() }}</td>
             <td><NuxtLink :to="`/teach/courses/${c.id}/analytics`" class="text-brand-700 hover:underline text-sm font-semibold flex items-center gap-1"><TrendingUp class="w-3.5 h-3.5" /> Details</NuxtLink></td>
           </tr>
-          <tr v-if="overview && overview.per_course.length === 0"><td colspan="7" class="text-center text-slate-400 py-8">No courses yet — create your first one!</td></tr>
+          <tr v-if="overview && overview.per_course.length === 0"><td colspan="7" class="text-center text-slate-400 py-8">No courses yet - create your first one!</td></tr>
         </tbody>
       </table>
     </div>

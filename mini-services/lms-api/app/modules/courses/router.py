@@ -95,7 +95,7 @@ def review_course(slug: str, data: ReviewIn, db: Session = Depends(get_db), user
 
 @router.get("/lessons/{lesson_id}")
 def lesson_content(lesson_id: int, db: Session = Depends(get_db), user: User | None = Depends(optional_user)):
-    """Full lesson content — for enrolled students, course owner, or free previews."""
+    """Full lesson content - for enrolled students, course owner, or free previews."""
     from app.modules.courses.models import Lesson
     from app.modules.enrollments.models import Enrollment
 

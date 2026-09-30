@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { UserPlus, GraduationCap, Briefcase } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Create account — LearnHub' })
+useSeoMeta({ title: 'Create account - LearnHub' })
 definePageMeta({ middleware: 'guest' })
 
 const auth = useAuth()

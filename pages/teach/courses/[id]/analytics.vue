@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Users, Trophy, DollarSign, TrendingUp, BarChart3, ClipboardList } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Course analytics — LearnHub' })
+useSeoMeta({ title: 'Course analytics - LearnHub' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const route = useRoute()
@@ -60,7 +60,7 @@ const fmtDate = (s: string) => {
 
       <!-- enrollment trend -->
       <div class="card p-5 mb-8" v-if="trendSeries.length">
-        <h2 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><TrendingUp class="w-4.5 h-4.5 text-brand-600" /> Enrollments — last 30 days</h2>
+        <h2 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><TrendingUp class="w-4.5 h-4.5 text-brand-600" /> Enrollments - last 30 days</h2>
         <div class="flex items-end gap-1 h-36">
           <div v-for="t in trendSeries" :key="t.date" class="flex-1 group relative">
             <div class="w-full bg-gradient-to-t from-brand-600 to-brand-400 rounded-t transition-all group-hover:from-brand-700"

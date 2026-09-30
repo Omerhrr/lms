@@ -10,12 +10,12 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'LearnHub — Learning Management System',
+      title: 'LearnHub - Learning Management System',
       htmlAttrs: { lang: 'en' },
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'LearnHub — a full-featured learning management platform for instructors, students and administrators.' }
+        { name: 'description', content: 'LearnHub - a full-featured learning management platform for instructors, students and administrators.' }
       ],
       link: [{ rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]
     }

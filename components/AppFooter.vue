@@ -7,7 +7,7 @@
           <span class="text-lg font-extrabold text-white">Learn<span class="text-brand-400">Hub</span></span>
         </div>
         <p class="mt-3 text-sm leading-relaxed max-w-xs">
-          The complete learning management platform — create courses, enroll students, grade assessments and celebrate achievements.
+          The complete learning management platform - create courses, enroll students, grade assessments and celebrate achievements.
         </p>
       </div>
       <div>
@@ -29,7 +29,7 @@
       </div>
     </div>
     <div class="border-t border-slate-800 py-4 text-center text-xs">
-      © {{ new Date().getFullYear() }} LearnHub LMS — built with Nuxt + FastAPI + SQLAlchemy
+      © {{ new Date().getFullYear() }} LearnHub LMS - built with Nuxt + FastAPI + SQLAlchemy
     </div>
   </footer>
 </template>

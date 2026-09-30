@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Printer, ShieldCheck, BadgeCheck, XCircle } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Certificate — LearnHub' })
+useSeoMeta({ title: 'Certificate - LearnHub' })
 
 const route = useRoute()
 const api = useApi()

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Search, Trash2, ShieldCheck, Ban, CheckCircle2 } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'User management — LearnHub' })
+useSeoMeta({ title: 'User management - LearnHub' })
 definePageMeta({ middleware: 'admin', layout: 'dashboard' })
 
 const api = useApi()

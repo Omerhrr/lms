@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { KeyRound } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Reset password — LearnHub' })
+useSeoMeta({ title: 'Reset password - LearnHub' })
 
 const api = useApi()
 const { show } = useToast()
@@ -21,7 +21,7 @@ const request = async () => {
     if (res.reset_token) {
       resetToken.value = res.reset_token
       stage.value = 'reset'
-      show('Reset token generated (demo mode — normally emailed)', 'info')
+      show('Reset token generated (demo mode - normally emailed)', 'info')
     } else {
       show(res.message, 'info')
     }
@@ -63,7 +63,7 @@ const reset = async () => {
           <input v-model="email" type="email" class="input" placeholder="you@example.com" @keyup.enter="request" />
         </div>
         <button class="btn-primary w-full" :disabled="loading" @click="request">{{ loading ? 'Working…' : 'Generate reset token' }}</button>
-        <p class="text-xs text-slate-400 text-center">Demo mode returns the token directly — production would email it.</p>
+        <p class="text-xs text-slate-400 text-center">Demo mode returns the token directly - production would email it.</p>
       </div>
 
       <div v-else-if="stage === 'reset'" class="card p-6 space-y-4">

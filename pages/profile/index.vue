@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Save, KeyRound } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Profile — LearnHub' })
+useSeoMeta({ title: 'Profile - LearnHub' })
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
 const api = useApi()
@@ -33,7 +33,7 @@ const changePw = async () => {
   savingPw.value = true
   try {
     await api.post('/auth/change-password', { current_password: pw.value.current_password, new_password: pw.value.new_password })
-    show('Password changed — please sign in again.', 'info')
+    show('Password changed - please sign in again.', 'info')
     auth.logout(true)
     navigateTo('/login')
   } catch (e: any) { show(e?.data?.detail || 'Change failed', 'error') } finally { savingPw.value = false }
@@ -45,7 +45,7 @@ const onUpload = async (e: Event) => {
   try {
     const res = await api.upload(file)
     form.value.avatar_url = res.url
-    show('Avatar uploaded — remember to save!', 'info')
+    show('Avatar uploaded - remember to save!', 'info')
   } catch { show('Upload failed', 'error') }
 }
 </script>
