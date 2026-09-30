@@ -12,16 +12,16 @@ class EnrollmentService:
 
     @staticmethod
     def enroll(db: Session, course: Course, user: User, target_user_id: int | None = None) -> Enrollment:
-        """Students self-enroll; instructors/admins can enroll someone else via target_user_id."""
-        if user.role == UserRole.student:
-            student_id = user.id
-        else:
-            if target_user_id is None:
-                raise HTTPException(400, "target_user_id is required when enrolling on behalf of a student")
+        """Anyone may enroll themselves; instructors/admins may also enroll a student."""
+        if target_user_id is not None and target_user_id != user.id:
+            if user.role == UserRole.student:
+                raise HTTPException(403, "Students can only enroll themselves")
             student = db.get(User, target_user_id)
             if not student or student.role != UserRole.student:
                 raise HTTPException(404, "Student not found")
             student_id = student.id
+        else:
+            student_id = user.id
 
         if course.status != CourseStatus.published and course.instructor_id != user.id and user.role != UserRole.admin:
             raise HTTPException(404, "Course not found")
@@ -71,30 +71,41 @@ class EnrollmentService:
         return progress
 
     @staticmethod
+    def finalize_completion(db: Session, enrollment: Enrollment) -> None:
+        """Shared completion path: when progress hits 100%, mark the enrollment
+        completed, issue the certificate (idempotent) and notify the student.
+
+        Used by both complete_lesson and the quiz auto-complete flow, so a
+        course whose final lesson is a quiz still yields a certificate.
+        """
+        progress = EnrollmentService.recompute_progress(db, enrollment)
+        if progress < 100 or enrollment.status == "completed":
+            return
+        enrollment.status = "completed"
+        enrollment.completed_at = utcnow()
+        db.commit()
+        # modular events: certificate issuance + congratulation notification
+        from app.modules.certificates.service import issue_certificate
+        from app.modules.notifications.service import notify
+        from app.modules.courses.models import Course
+        course = db.get(Course, enrollment.course_id)
+        cert = issue_certificate(db, enrollment.user_id, enrollment.course_id)
+        notify(db, enrollment.user_id, "certificate", "🎓 Course completed!",
+               f"Congratulations! You completed “{course.title}” and earned a certificate.",
+               f"/certificates/{cert.serial}")
+
+    @staticmethod
     def complete_lesson(db: Session, course: Course, lesson: Lesson, user: User) -> dict:
         enrollment = EnrollmentService.get_enrollment(db, course.id, user.id)
         existing = db.query(LessonProgress).filter(
             LessonProgress.enrollment_id == enrollment.id, LessonProgress.lesson_id == lesson.id).first()
-        already_done = existing is not None
-        if not already_done:
+        if not existing:
             db.add(LessonProgress(enrollment_id=enrollment.id, lesson_id=lesson.id))
             db.commit()
 
-        progress = EnrollmentService.recompute_progress(db, enrollment)
-
-        if progress >= 100 and enrollment.status != "completed":
-            enrollment.status = "completed"
-            enrollment.completed_at = utcnow()
-            db.commit()
-            # modular event: certificate issuance + congratulation notification
-            from app.modules.certificates.service import issue_certificate
-            from app.modules.notifications.service import notify
-            cert = issue_certificate(db, user.id, course.id)
-            notify(db, user.id, "certificate", "🎓 Course completed!",
-                   f"Congratulations! You completed “{course.title}” and earned a certificate.",
-                   f"/certificates/{cert.serial}")
+        EnrollmentService.finalize_completion(db, enrollment)
         db.commit()
-        return {"progress": progress, "status": enrollment.status}
+        return {"progress": enrollment.progress, "status": enrollment.status}
 
     @staticmethod
     def uncomplete_lesson(db: Session, course: Course, lesson: Lesson, user: User) -> dict:

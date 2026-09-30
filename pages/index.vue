@@ -12,19 +12,14 @@ const loading = ref(true)
 
 onMounted(async () => {
   try {
-    const [f, c] = await Promise.all([
+    const [f, c, s] = await Promise.all([
       api.get<any[]>('/courses/featured', undefined, true),
       api.get<any[]>('/categories', undefined, true),
+      api.get<any>('/stats/public', undefined, true),
     ])
     featured.value = f
     categories.value = c
-    // lightweight platform stats from the catalog
-    const list = await api.get<any>('/courses?size=48', undefined, true)
-    stats.value = {
-      courses: list.total,
-      enrollments: list.items.reduce((s: number, c: any) => s + c.enrollment_count, 0),
-      users: list.items.reduce((s: number, c: any) => s + c.enrollment_count, 0),
-    }
+    stats.value = { courses: s.courses, enrollments: s.enrollments, users: s.users }
   } catch { /* landing stays graceful */ } finally { loading.value = false }
 })
 </script>
@@ -63,7 +58,7 @@ onMounted(async () => {
           <div class="mt-10 flex flex-wrap gap-8 text-sm">
             <div><div class="text-2xl font-extrabold text-white">{{ stats.courses }}+</div><div class="text-slate-400">Courses</div></div>
             <div><div class="text-2xl font-extrabold text-white">{{ stats.enrollments }}+</div><div class="text-slate-400">Enrollments</div></div>
-            <div><div class="text-2xl font-extrabold text-white">6+</div><div class="text-slate-400">Demo users</div></div>
+            <div><div class="text-2xl font-extrabold text-white">{{ stats.users }}+</div><div class="text-slate-400">Learners</div></div>
           </div>
         </div>
 

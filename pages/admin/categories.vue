@@ -29,7 +29,7 @@ const save = async () => {
     }
     modal.value = { open: false, name: '', description: '' }
     await load()
-  } catch (e: any) { show(e?.data?.detail || 'Failed', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 
 const remove = async (c: any) => {
@@ -38,7 +38,7 @@ const remove = async (c: any) => {
     await api.del(`/categories/${c.id}`)
     show('Category deleted', 'info')
     await load()
-  } catch (e: any) { show(e?.data?.detail || 'Delete failed', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 </script>
 

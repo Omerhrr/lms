@@ -27,7 +27,11 @@ def list_users(
         like = f"%{search}%"
         q = q.filter(or_(User.full_name.ilike(like), User.email.ilike(like)))
     if role:
-        q = q.filter(User.role == UserRole(role))
+        try:
+            role_enum = UserRole(role)
+        except ValueError:
+            raise HTTPException(400, f"Invalid role '{role}'. Valid roles: admin, instructor, student")
+        q = q.filter(User.role == role_enum)
     items, total, page, pages = paginate(q.order_by(User.created_at.desc()), page, size)
     return {"items": [UserOut.model_validate(u).model_dump(mode="json") for u in items],
             "total": total, "page": page, "pages": pages}
@@ -73,6 +77,21 @@ def delete_user(user_id: int, db: Session = Depends(get_db), admin: User = Depen
     db.delete(user)
     db.commit()
     return {"message": f"User {user.email} deleted"}
+
+
+@router.get("/stats/public")
+def public_stats(db: Session = Depends(get_db)):
+    """Anonymous platform stats for the landing page."""
+    total_users = db.query(func.count(User.id)).scalar() or 0
+    instructors = db.query(func.count(User.id)).filter(User.role == UserRole.instructor).scalar() or 0
+    published = db.query(func.count(Course.id)).filter(Course.status == "published").scalar() or 0
+    enrollments = db.query(func.count(Enrollment.id)).scalar() or 0
+    return {
+        "users": int(total_users),
+        "instructors": int(instructors),
+        "courses": int(published),
+        "enrollments": int(enrollments),
+    }
 
 
 @router.get("/admin/stats")

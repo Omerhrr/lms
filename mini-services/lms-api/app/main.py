@@ -52,11 +52,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ensure runtime dirs exist before StaticFiles mounts (uploads/ is not in git)
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+os.makedirs("data", exist_ok=True)
+
 
 @app.on_event("startup")
 def on_startup():
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    os.makedirs("data", exist_ok=True)
     Base.metadata.create_all(bind=engine)
 
 

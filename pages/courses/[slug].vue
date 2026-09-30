@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {
   Clock, Users, Globe, BarChart3, PlayCircle, CheckCircle2, FileDown, Star,
-  GraduationCap, MessageSquare, Megaphone, Lock, Check, Eye
+  GraduationCap, MessageSquare, Megaphone, Lock, Check, Eye, FileText,
+  ClipboardList, Upload, Send, Pin, PinOff, Unlock, Trash2, ArrowLeft
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -13,14 +14,25 @@ const course = ref<any>(null)
 const reviews = ref<any[]>([])
 const threads = ref<any[]>([])
 const announcements = ref<any[]>([])
+const assignments = ref<any[]>([])
 const loading = ref(true)
 const enrolling = ref(false)
-const tab = ref<'overview' | 'curriculum' | 'discussion' | 'announcements' | 'reviews'>('overview')
+const tab = ref<'overview' | 'curriculum' | 'discussion' | 'assignments' | 'announcements' | 'reviews'>('overview')
 const expanded = ref<Set<number>>(new Set())
 
 const myReview = ref({ rating: 5, comment: '' })
 const threadForm = ref({ title: '', body: '' })
 const posting = ref(false)
+
+// discussion thread viewer
+const openThread = ref<any>(null)
+const threadLoading = ref(false)
+const replyText = ref('')
+const replyPosting = ref(false)
+
+// assignment submission forms, keyed by assignment id
+const subForms = ref<Record<number, { text_response: string; file_url: string }>>({})
+const submitting = ref<number | null>(null)
 
 const load = async () => {
   loading.value = true
@@ -34,6 +46,15 @@ const load = async () => {
       reviews.value = await api.get<any[]>(`/courses/${route.params.slug}/reviews`, undefined, true).catch(() => [])
       threads.value = await api.get<any[]>(`/courses/${course.value.id}/discussions`, undefined, true).catch(() => [])
       announcements.value = await api.get<any[]>(`/courses/${course.value.id}/announcements`, undefined, true).catch(() => [])
+      assignments.value = await api.get<any[]>(`/courses/${course.value.id}/assignments`, undefined, true).catch(() => [])
+      // deep link from notifications: /courses/{slug}?tab=discussion&thread=ID
+      const wanted = Number(route.query.thread)
+      if (route.query.tab === 'discussion' && wanted) {
+        tab.value = 'discussion'
+        loadThread(wanted)
+      } else if (route.query.tab === 'discussion') {
+        tab.value = 'discussion'
+      }
     } else {
       reviews.value = await api.get<any[]>(`/courses/${route.params.slug}/reviews`, undefined, true).catch(() => [])
     }
@@ -47,13 +68,11 @@ const enroll = async () => {
   enrolling.value = true
   try {
     await api.post(`/enrollments/${course.value.id}`)
-    show(`You're enrolled in “${course.value.title}”! 🎉`)
+    show(`You're enrolled in "${course.value.title}"! 🎉`)
     const firstLesson = firstPreviewableLesson()
     await load()
     if (firstLesson) navigateTo(`/learn/${course.value.slug}/${firstLesson.id}`)
-  } catch (e: any) {
-    show(e?.data?.detail || 'Could not enroll', 'error')
-  } finally { enrolling.value = false }
+  } catch { /* the api client already showed the error */ } finally { enrolling.value = false }
 }
 
 const firstPreviewableLesson = () => {
@@ -68,9 +87,7 @@ const toggle = (sid: number) => {
   else expanded.value.add(sid)
 }
 
-const lessonIcon = (t: string) => (t === 'video' ? PlayCircle : t === 'quiz' ? BarChart3 : t === 'file' ? FileDown : FileText_)
-
-import { FileText as FileText_ } from 'lucide-vue-next'
+const lessonIcon = (t: string) => (t === 'video' ? PlayCircle : t === 'quiz' ? BarChart3 : t === 'file' ? FileDown : FileText)
 
 const submitReview = async () => {
   try {
@@ -78,7 +95,7 @@ const submitReview = async () => {
     show('Thanks for your review! ⭐')
     reviews.value = await api.get<any[]>(`/courses/${route.params.slug}/reviews`)
     course.value.has_reviewed = true
-  } catch (e: any) { show(e?.data?.detail || 'Could not submit review', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 
 const createThread = async () => {
@@ -89,7 +106,74 @@ const createThread = async () => {
     threadForm.value = { title: '', body: '' }
     threads.value = await api.get<any[]>(`/courses/${course.value.id}/discussions`)
     show('Question posted!')
-  } catch (e: any) { show(e?.data?.detail || 'Could not post', 'error') } finally { posting.value = false }
+  } catch { /* the api client already showed the error */ } finally { posting.value = false }
+}
+
+// ---------- thread detail ----------
+const loadThread = async (id: number) => {
+  threadLoading.value = true
+  try {
+    openThread.value = await api.get<any>(`/discussions/${id}`)
+  } catch { /* the api client already showed the error */ } finally { threadLoading.value = false }
+}
+
+const closeThread = () => { openThread.value = null; replyText.value = '' }
+
+const sendReply = async () => {
+  const body = replyText.value.trim()
+  if (!body || !openThread.value) return
+  replyPosting.value = true
+  try {
+    await api.post(`/discussions/${openThread.value.id}/posts`, { body })
+    replyText.value = ''
+    await loadThread(openThread.value.id)
+    threads.value = await api.get<any[]>(`/courses/${course.value.id}/discussions`)
+  } catch { /* the api client already showed the error */ } finally { replyPosting.value = false }
+}
+
+const togglePin = async () => {
+  await api.post(`/discussions/${openThread.value.id}/pin`)
+  await loadThread(openThread.value.id)
+  threads.value = await api.get<any[]>(`/courses/${course.value.id}/discussions`)
+}
+
+const toggleLock = async () => {
+  await api.post(`/discussions/${openThread.value.id}/lock`)
+  await loadThread(openThread.value.id)
+  threads.value = await api.get<any[]>(`/courses/${course.value.id}/discussions`)
+}
+
+const deleteThread = async () => {
+  if (!confirm('Delete this thread and all its replies?')) return
+  await api.del(`/discussions/${openThread.value.id}`)
+  closeThread()
+  threads.value = await api.get<any[]>(`/courses/${course.value.id}/discussions`)
+  show('Thread deleted', 'info')
+}
+
+// ---------- assignments ----------
+const formFor = (a: any) => {
+  if (!subForms.value[a.id]) subForms.value[a.id] = { text_response: a.my_submission?.text_response || '', file_url: a.my_submission?.file_url || '' }
+  return subForms.value[a.id]
+}
+
+const onSubmissionFile = async (a: any, e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const res = await api.upload(file)
+  formFor(a).file_url = res.url
+  show('File attached - submit when ready!', 'info')
+}
+
+const submitAssignment = async (a: any) => {
+  const f = formFor(a)
+  if (!f.text_response.trim() && !f.file_url) return show('Write a response or attach a file', 'error')
+  submitting.value = a.id
+  try {
+    await api.post(`/assignments/${a.id}/submit`, { text_response: f.text_response, file_url: f.file_url || null })
+    show('Assignment submitted!')
+    assignments.value = await api.get<any[]>(`/courses/${course.value.id}/assignments`)
+  } catch { /* the api client already showed the error */ } finally { submitting.value = null }
 }
 
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
@@ -182,7 +266,7 @@ watch(() => route.params.slug, load)
       <div class="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto">
         <button v-for="t in [
           ['overview', 'Overview'], ['curriculum', 'Curriculum'],
-          ...(course.is_enrolled || course.can_manage ? [['discussion', 'Q&A'], ['announcements', 'Announcements']] : []),
+          ...(course.is_enrolled || course.can_manage ? [['discussion', 'Q&A'], ['assignments', 'Assignments'], ['announcements', 'Announcements']] : []),
           ['reviews', 'Reviews'],
         ]" :key="t[0]" @click="tab = t[0] as any"
           class="px-4 py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap"
@@ -245,8 +329,7 @@ watch(() => route.params.slug, load)
           <button class="btn-primary mt-3" :disabled="posting" @click="createThread">{{ posting ? 'Posting…' : 'Post question' }}</button>
         </div>
         <EmptyState v-if="threads.length === 0" empty>No discussions yet - be the first to ask!</EmptyState>
-        <NuxtLink v-for="t in threads" :key="t.id" :to="`/courses/${course.slug}?tab=discussion`"
-          @click.prevent="tab = 'discussion'"
+        <div v-for="t in threads" :key="t.id" @click="loadThread(t.id)"
           class="card p-4 flex items-start gap-4 hover:border-brand-300 transition cursor-pointer">
           <div class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 uppercase text-sm shrink-0">
             {{ t.author.full_name.slice(0, 1) }}
@@ -259,7 +342,60 @@ watch(() => route.params.slug, load)
             </div>
             <p class="text-xs text-slate-400 mt-0.5">{{ t.author.full_name }} · {{ t.reply_count }} replies</p>
           </div>
-        </NuxtLink>
+        </div>
+      </div>
+
+      <!-- assignments -->
+      <div v-else-if="tab === 'assignments'" class="max-w-3xl mx-auto space-y-5">
+        <EmptyState v-if="assignments.length === 0" empty>No assignments in this course (yet).</EmptyState>
+        <div v-for="a in assignments" :key="a.id" class="card p-5">
+          <div class="flex items-start justify-between gap-3 flex-wrap">
+            <div class="flex items-start gap-3 min-w-0">
+              <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                <ClipboardList class="w-5 h-5 text-amber-600" />
+              </div>
+              <div class="min-w-0">
+                <h4 class="font-bold text-slate-800">{{ a.title }}</h4>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  {{ a.max_points }} points
+                  <span v-if="a.due_date"> · due {{ formatDate(a.due_date) }}</span>
+                </p>
+              </div>
+            </div>
+            <span v-if="a.my_submission" class="badge shrink-0"
+              :class="a.my_submission.status === 'graded' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'">
+              {{ a.my_submission.status === 'graded' ? `Graded: ${a.my_submission.grade}/${Math.round(a.max_points)}` : 'Submitted - awaiting grade' }}
+            </span>
+            <span v-else class="badge bg-slate-100 text-slate-500 shrink-0">Not submitted</span>
+          </div>
+
+          <p v-if="a.instructions" class="text-sm text-slate-600 mt-3 whitespace-pre-wrap border-l-2 border-slate-100 pl-3">{{ a.instructions }}</p>
+
+          <!-- graded feedback -->
+          <div v-if="a.my_submission?.status === 'graded'" class="mt-4 rounded-lg bg-emerald-50 border border-emerald-100 p-4 text-sm">
+            <p v-if="a.my_submission.feedback" class="text-emerald-800"><b>Instructor feedback:</b> {{ a.my_submission.feedback }}</p>
+            <p v-else class="text-emerald-800">Graded {{ a.my_submission.grade }}/{{ Math.round(a.max_points) }}.</p>
+          </div>
+
+          <!-- submit / resubmit form -->
+          <div v-else-if="course.is_enrolled" class="mt-4 space-y-3 border-t border-slate-100 pt-4">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              {{ a.my_submission ? 'Resubmit (allowed until it is graded)' : 'Your submission' }}
+            </p>
+            <textarea v-model="formFor(a).text_response" class="input min-h-[90px]"
+              placeholder="Write your answer, paste a link, or attach a file…" />
+            <div class="flex flex-wrap items-center gap-3">
+              <label class="btn-secondary cursor-pointer text-sm">
+                <Upload class="w-4 h-4" /> {{ formFor(a).file_url ? 'File attached ✓' : 'Attach file' }}
+                <input type="file" class="hidden" @change="onSubmissionFile(a, $event)" />
+              </label>
+              <a v-if="formFor(a).file_url" :href="formFor(a).file_url" target="_blank" class="text-xs text-brand-700 hover:underline">View attached file</a>
+              <button class="btn-primary text-sm ml-auto" :disabled="submitting === a.id" @click="submitAssignment(a)">
+                <Send class="w-3.5 h-3.5" /> {{ submitting === a.id ? 'Submitting…' : 'Submit' }}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- announcements -->
@@ -306,5 +442,74 @@ watch(() => route.params.slug, load)
         </div>
       </div>
     </div>
+
+    <!-- thread detail modal -->
+    <Modal :open="!!openThread" :title="openThread?.title || 'Discussion'" wide @close="closeThread">
+      <div v-if="threadLoading && !openThread" class="h-40 animate-pulse bg-slate-100 rounded-lg" />
+      <div v-else-if="openThread" class="space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-2 text-xs text-slate-400">
+            <button class="btn-ghost text-xs !px-2" @click="closeThread"><ArrowLeft class="w-3.5 h-3.5" /> All threads</button>
+            <span v-if="openThread.is_pinned" class="badge bg-amber-50 text-amber-700">📌 Pinned</span>
+            <span v-if="openThread.is_locked" class="badge bg-slate-100 text-slate-500">🔒 Locked</span>
+          </div>
+          <div v-if="openThread.can_moderate" class="flex items-center gap-1">
+            <button class="btn-ghost text-xs !px-2" @click="togglePin">
+              <Pin v-if="!openThread.is_pinned" class="w-3.5 h-3.5" /><PinOff v-else class="w-3.5 h-3.5" />
+              {{ openThread.is_pinned ? 'Unpin' : 'Pin' }}
+            </button>
+            <button class="btn-ghost text-xs !px-2" @click="toggleLock">
+              <Lock v-if="!openThread.is_locked" class="w-3.5 h-3.5" /><Unlock v-else class="w-3.5 h-3.5" />
+              {{ openThread.is_locked ? 'Unlock' : 'Lock' }}
+            </button>
+            <button class="btn-ghost text-xs !px-2 text-rose-600 hover:!bg-rose-50" @click="deleteThread">
+              <Trash2 class="w-3.5 h-3.5" /> Delete
+            </button>
+          </div>
+        </div>
+
+        <!-- original question -->
+        <div class="flex gap-3">
+          <div class="w-9 h-9 rounded-full bg-brand-50 text-brand-700 flex items-center justify-center font-bold uppercase text-sm shrink-0">
+            {{ openThread.author.full_name.slice(0, 1) }}
+          </div>
+          <div class="min-w-0">
+            <div class="text-sm">
+              <b class="text-slate-800">{{ openThread.author.full_name }}</b>
+              <span v-if="openThread.author.role === 'instructor'" class="badge bg-brand-50 text-brand-700 ml-1.5">Instructor</span>
+              <span class="text-slate-400 ml-2 text-xs">{{ formatDate(openThread.created_at) }}</span>
+            </div>
+            <p class="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{{ openThread.body }}</p>
+          </div>
+        </div>
+
+        <!-- replies -->
+        <div v-if="openThread.posts?.length" class="space-y-3 border-l-2 border-slate-100 ml-4 pl-4">
+          <div v-for="p in openThread.posts" :key="p.id" class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold uppercase text-xs shrink-0">
+              {{ p.author.full_name.slice(0, 1) }}
+            </div>
+            <div class="min-w-0">
+              <div class="text-sm">
+                <b class="text-slate-700">{{ p.author.full_name }}</b>
+                <span v-if="p.author.role === 'instructor'" class="badge bg-brand-50 text-brand-700 ml-1.5">Instructor</span>
+                <span class="text-slate-400 ml-2 text-xs">{{ formatDate(p.created_at) }}</span>
+              </div>
+              <p class="text-sm text-slate-600 mt-0.5 whitespace-pre-wrap">{{ p.body }}</p>
+            </div>
+          </div>
+        </div>
+        <p v-else class="text-sm text-slate-400 ml-4">No replies yet.</p>
+
+        <!-- reply box -->
+        <div v-if="!openThread.is_locked || openThread.can_moderate" class="border-t border-slate-100 pt-4">
+          <textarea v-model="replyText" class="input min-h-[70px]" placeholder="Write a reply…" />
+          <button class="btn-primary mt-2 text-sm" :disabled="replyPosting || !replyText.trim()" @click="sendReply">
+            <Send class="w-3.5 h-3.5" /> {{ replyPosting ? 'Posting…' : 'Post reply' }}
+          </button>
+        </div>
+        <p v-else class="text-xs text-slate-400 border-t border-slate-100 pt-4">This thread is locked - new replies are disabled.</p>
+      </div>
+    </Modal>
   </div>
 </template>

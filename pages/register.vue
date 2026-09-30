@@ -20,7 +20,12 @@ const submit = async () => {
   if (f.password !== f.confirm) return show('Passwords do not match', 'error')
   loading.value = true
   try {
-    const user = await auth.register({ ...f, role: role.value })
+    const user = await auth.register({
+      email: f.email,
+      password: f.password,
+      full_name: f.full_name,
+      role: role.value,
+    })
     show(`Welcome to LearnHub, ${user.full_name.split(' ')[0]}!`)
     router.push(auth.homeFor(user))
   } catch (e: any) {

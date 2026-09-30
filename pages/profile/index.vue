@@ -24,7 +24,7 @@ const save = async () => {
     const updated = await api.put<any>('/auth/me', form.value)
     auth.user.value = updated
     show('Profile updated!')
-  } catch (e: any) { show(e?.data?.detail || 'Update failed', 'error') } finally { saving.value = false }
+  } catch { /* the api client already showed the error */ } finally { saving.value = false }
 }
 
 const changePw = async () => {
@@ -34,9 +34,9 @@ const changePw = async () => {
   try {
     await api.post('/auth/change-password', { current_password: pw.value.current_password, new_password: pw.value.new_password })
     show('Password changed - please sign in again.', 'info')
-    auth.logout(true)
+    auth.logout()
     navigateTo('/login')
-  } catch (e: any) { show(e?.data?.detail || 'Change failed', 'error') } finally { savingPw.value = false }
+  } catch { /* the api client already showed the error */ } finally { savingPw.value = false }
 }
 
 const onUpload = async (e: Event) => {
@@ -46,7 +46,7 @@ const onUpload = async (e: Event) => {
     const res = await api.upload(file)
     form.value.avatar_url = res.url
     show('Avatar uploaded - remember to save!', 'info')
-  } catch { show('Upload failed', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 </script>
 

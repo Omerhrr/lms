@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -71,10 +71,8 @@ def instructor_overview(db: Session = Depends(get_db), user: User = Depends(staf
 def course_analytics(course_id: int, db: Session = Depends(get_db), user: User = Depends(staff_required)):
     course = db.get(Course, course_id)
     if not course:
-        from fastapi import HTTPException
         raise HTTPException(404, "Course not found")
     if course.instructor_id != user.id and user.role != UserRole.admin:
-        from fastapi import HTTPException
         raise HTTPException(403, "Not your course")
 
     enrolled = db.query(Enrollment).filter(Enrollment.course_id == course_id).count()

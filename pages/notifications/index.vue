@@ -25,8 +25,10 @@ const load = async () => {
 }
 
 const markAll = async () => {
-  await api.post('/notifications/read-all')
-  items.value.forEach(n => n.is_read = true)
+  try {
+    await api.post('/notifications/read-all')
+    items.value.forEach(n => n.is_read = true)
+  } catch { /* the api client already showed the error */ }
 }
 
 const open = async (n: any) => {

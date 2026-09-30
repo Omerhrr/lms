@@ -13,7 +13,6 @@ const data = ref<any>(null)
 const loading = ref(true)
 
 // grading modal
-const grading = ref<{ open: boolean; submissionId?: number; student?: string; title?: string; maxPoints?: number; current?: any }>({ open: false })
 const gradeForm = ref({ grade: 0, feedback: '' })
 const saving = ref(false)
 
@@ -38,7 +37,7 @@ const openGrading = async (row: any, col: any) => {
     } else {
       gradeForm.value = { grade: col.max_points, feedback: '' }
     }
-  } catch { show('Could not load submission', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 
 const grade = async () => {
@@ -48,7 +47,7 @@ const grade = async () => {
     show('Graded and student notified!')
     viewing.value = { open: false }
     await load()
-  } catch (e: any) { show(e?.data?.detail || 'Grading failed', 'error') } finally { saving.value = false }
+  } catch { /* the api client already showed the error */ } finally { saving.value = false }
 }
 </script>
 

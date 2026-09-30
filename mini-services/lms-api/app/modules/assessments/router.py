@@ -197,6 +197,33 @@ def gradebook(course_id: int, db: Session = Depends(get_db), user: User = Depend
 
 # ============ student ============
 
+@router.get("/courses/{course_id}/assignments")
+def course_assignments(course_id: int, db: Session = Depends(get_db), user: User = Depends(any_user)):
+    """Assignments for a course with the caller's submission status merged in."""
+    from app.modules.discussions.router import _can_access
+    course = CoursesService.get_course(db, course_id)
+    if not _can_access(db, course, user):
+        raise HTTPException(403, "Enroll in this course to view assignments")
+    assignments = sorted(
+        db.query(Assignment).filter(Assignment.course_id == course_id).all(), key=lambda a: a.position)
+    result = []
+    for a in assignments:
+        sub = db.query(Submission).filter(
+            Submission.assignment_id == a.id, Submission.user_id == user.id).first()
+        result.append({
+            "id": a.id, "title": a.title, "instructions": a.instructions,
+            "due_date": a.due_date.isoformat() if a.due_date else None,
+            "max_points": a.max_points, "allow_file": a.allow_file,
+            "my_submission": (
+                {"id": sub.id, "text_response": sub.text_response, "file_url": sub.file_url,
+                 "submitted_at": sub.submitted_at.isoformat(), "status": sub.status,
+                 "grade": sub.grade, "feedback": sub.feedback}
+                if sub else None
+            ),
+        })
+    return result
+
+
 @router.get("/lessons/{lesson_id}/quiz")
 def lesson_quiz_for_student(lesson_id: int, db: Session = Depends(get_db), user: User = Depends(any_user)):
     """Resolve the quiz attached to a lesson (student-safe payload)."""

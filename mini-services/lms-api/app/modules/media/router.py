@@ -2,7 +2,6 @@ import os
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.deps import any_user

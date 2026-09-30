@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   Plus, Trash2, ChevronUp, ChevronDown, PlayCircle, FileText, FileDown,
-  BarChart3, Save, X, Pencil, HelpCircle, ListPlus, GraduationCap
+  BarChart3, Save, Pencil, HelpCircle, ListPlus, GraduationCap
 } from 'lucide-vue-next'
 
 useSeoMeta({ title: 'Curriculum builder - LearnHub' })
@@ -45,7 +45,7 @@ const saveSection = async () => {
     }
     sectionModal.value = { open: false, title: '' }
     await load()
-  } catch (e: any) { show(e?.data?.detail || 'Failed', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 
 const moveSection = async (id: number, direction: string) => {
@@ -81,7 +81,7 @@ const saveLesson = async () => {
     }
     lessonModal.value = { open: false }
     await load()
-  } catch (e: any) { show(e?.data?.detail || 'Failed', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 
 const moveLesson = async (id: number, direction: string) => {
@@ -97,14 +97,15 @@ const deleteLesson = async (id: number) => {
 }
 
 // ---------- quiz editor ----------
+const emptyQuiz = () => ({ id: undefined, title: '', description: '', time_limit_minutes: null, passing_score: 60, max_attempts: 0, questions: [] })
+
 const openQuiz = async (lesson: any) => {
   quizModal.value = { open: true, lesson }
-  quiz.value = null
-  // find existing quiz for this lesson via teach quiz lookup: we don't have quiz id on lesson; use a lightweight trick - the gradebook API exposes quiz ids, but simpler: try fetching via course editor data endpoint? Instead: attempt GET /teach/quizzes/{id} is unknown; use attempt discovery via lesson-scoped endpoint below.
+  quiz.value = emptyQuiz()
   try {
     const res = await api.get<any>(`/teach/lessons/${lesson.id}/quiz`)
-    quiz.value = res
-  } catch { quiz.value = null }
+    quiz.value = { ...emptyQuiz(), ...res }
+  } catch { /* no quiz yet - keep the empty editor */ }
 }
 
 const saveQuizMeta = async () => {
@@ -116,10 +117,10 @@ const saveQuizMeta = async () => {
       passing_score: quiz.value?.passing_score ?? 60,
       max_attempts: quiz.value?.max_attempts ?? 0,
     })
-    quiz.value = { ...(quiz.value || {}), id: res.id }
+    quiz.value = { ...(quiz.value || emptyQuiz()), id: res.id }
     show('Quiz settings saved')
     await load()
-  } catch (e: any) { show(e?.data?.detail || 'Failed', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 
 const openQuestion = (editing?: any) => {
@@ -170,7 +171,7 @@ const saveQuestion = async () => {
     }
     questionModal.value = { open: false }
     await openQuiz(quizModal.value.lesson)
-  } catch (e: any) { show(e?.data?.detail || 'Failed', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 
 const deleteQuestion = async (id: number) => {
@@ -309,7 +310,7 @@ const letter = (i: number) => String.fromCharCode(65 + i)
 
     <!-- quiz editor modal -->
     <Modal :open="quizModal.open" :title="`Quiz · ${quizModal.lesson?.title || ''}`" wide @close="quizModal = { open: false }">
-      <div v-if="quiz === null" class="text-sm text-slate-500 mb-4">
+      <div v-if="!quiz?.id" class="text-sm text-slate-500 mb-4">
         No quiz configured for this lesson yet. Set the settings below and save to create it.
       </div>
       <div class="space-y-4">

@@ -28,7 +28,7 @@ const post = async () => {
     show('Announcement sent to all enrolled students!')
     form.value = { title: '', body: '' }
     await load()
-  } catch (e: any) { show(e?.data?.detail || 'Failed', 'error') } finally { posting.value = false }
+  } catch { /* the api client already showed the error */ } finally { posting.value = false }
 }
 
 const remove = async (id: number) => {

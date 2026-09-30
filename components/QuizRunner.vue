@@ -17,7 +17,6 @@ interface AttemptResult {
 const props = defineProps<{ lessonId: number }>()
 const emit = defineEmits<{ (e: 'passed'): void }>()
 const api = useApi()
-const { show } = useToast()
 
 const quiz = ref<QuizPayload | null>(null)
 const answers = ref<Record<string, any>>({})
@@ -43,8 +42,8 @@ const submit = async () => {
     result.value = await api.post<AttemptResult>(`/quizzes/${quiz.value?.id}/attempts`, { answers: answers.value })
     confirmSubmit.value = false
     if (result.value.passed) emit('passed')
-  } catch (e: any) {
-    show(e?.data?.detail || 'Could not submit quiz', 'error')
+  } catch {
+    /* the api client already showed the error */
   } finally {
     submitting.value = false
   }

@@ -24,6 +24,7 @@ from app.modules.certificates.service import issue_certificate  # noqa: E402
 
 
 def reset():
+    os.makedirs("data", exist_ok=True)   # sqlite file lives here on fresh clones
     Base_metadata = m_auth.Base.metadata
     Base_metadata.drop_all(bind=engine)
     Base_metadata.create_all(bind=engine)

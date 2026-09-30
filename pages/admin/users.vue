@@ -45,7 +45,7 @@ const setRole = async (u: any, role: string) => {
     await api.put(`/users/${u.id}?role=${role}`)
     u.role = role
     show(`${u.full_name} is now a ${role}`)
-  } catch (e: any) { show(e?.data?.detail || 'Failed', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 
 const toggleActive = async (u: any) => {
@@ -53,7 +53,7 @@ const toggleActive = async (u: any) => {
     await api.put(`/users/${u.id}?is_active=${!u.is_active}`)
     u.is_active = !u.is_active
     show(u.is_active ? 'Account activated' : 'Account deactivated', 'info')
-  } catch (e: any) { show(e?.data?.detail || 'Failed', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 
 const remove = async (u: any) => {
@@ -62,7 +62,7 @@ const remove = async (u: any) => {
     await api.del(`/users/${u.id}`)
     show('User deleted', 'info')
     await load()
-  } catch (e: any) { show(e?.data?.detail || 'Delete failed', 'error') }
+  } catch { /* the api client already showed the error */ }
 }
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString()

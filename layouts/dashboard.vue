@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {
-  LayoutDashboard, BookOpen, GraduationCap, Bell, Settings, Shield, Briefcase,
-  Menu, X, LogOut, ListChecks, FolderTree, Users, ClipboardList, Megaphone,
-  BarChart3, Home, ArrowLeft
+  LayoutDashboard, BookOpen, GraduationCap, Bell, Settings, Shield,
+  Menu, X, LogOut, FolderTree, Users, ClipboardList, Megaphone,
+  BarChart3, Home
 } from 'lucide-vue-next'
 
 const auth = useAuth()

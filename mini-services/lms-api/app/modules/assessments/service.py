@@ -172,8 +172,10 @@ class AssessmentService:
                             enrollment_id=enrollment.id, lesson_id=lesson.id).first()
                         if not already:
                             db.add(LessonProgress(enrollment_id=enrollment.id, lesson_id=lesson.id))
-                            EnrollmentService.recompute_progress(db, enrollment)
                             db.commit()
+                        # shared completion path: issues certificate when this
+                        # quiz was the last remaining lesson
+                        EnrollmentService.finalize_completion(db, enrollment)
 
         return {
             "attempt_id": attempt.id,

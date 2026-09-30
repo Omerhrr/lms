@@ -27,8 +27,8 @@ const submit = async () => {
     })
     show('Course created - build your curriculum next!')
     router.push(`/teach/courses/${res.id}/builder`)
-  } catch (e: any) {
-    show(e?.data?.detail || 'Could not create course', 'error')
+  } catch {
+    /* the api client already showed the error */
   } finally { saving.value = false }
 }
 </script>
