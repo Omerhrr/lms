@@ -1,6 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#059669"/>
-  <path d="M32 14 L52 23 L32 32 L12 23 Z" fill="#ffffff"/>
-  <path d="M20 28 v10 c0 3.3 5.4 7 12 7 s12-3.7 12-7 V28 l-4 1.8 v8 c0 1.6-3.6 3.6-8 3.6 s-8-2-8-3.6 v-8 Z" fill="#ffffff" opacity="0.9"/>
-  <rect x="50" y="23" width="3" height="12" rx="1.5" fill="#fbbf24"/>
+  <defs>
+    <linearGradient id="lh-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="55%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="lh-page" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#a7f3d0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- app tile -->
+  <rect width="64" height="64" rx="15" fill="url(#lh-bg)"/>
+  <path d="M0 0h64v12c-21.3 4.6-42.7 4.6-64 0Z" fill="#ffffff" opacity=".08"/>
+
+  <!-- open book -->
+  <path d="M13.5 39.3 C19.2 37.7 25 38.6 31.6 41.4 V47.8 C25 45 19.2 44.1 13.5 45.7 Z" fill="url(#lh-page)"/>
+  <path d="M50.5 39.3 C44.8 37.7 39 38.6 32.4 41.4 V47.8 C39 45 44.8 44.1 50.5 45.7 Z" fill="#ffffff" opacity=".88"/>
+
+  <!-- graduation cap: mortarboard -->
+  <path d="M32 15.8 L52.5 24.2 L32 32.6 L11.5 24.2 Z" fill="#ffffff"/>
+  <!-- graduation cap: band -->
+  <path d="M21.8 29.2 V35.8 C21.8 38.9 26.4 41.3 32 41.3 C37.6 41.3 42.2 38.9 42.2 35.8 V29.2"
+        fill="none" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round" opacity=".92"/>
+
+  <!-- tassel -->
+  <path d="M52.5 24 V29" stroke="#fbbf24" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="52.5" cy="32" r="2.2" fill="#fbbf24"/>
 </svg>

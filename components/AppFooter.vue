@@ -1,9 +1,9 @@
 <template>
-  <footer class="mt-auto bg-slate-900 text-slate-400">
+  <footer class="mt-auto bg-slate-900 dark:bg-black/40 border-t border-slate-900 dark:border-slate-800 text-slate-400">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10 grid gap-8 md:grid-cols-3">
       <div>
         <div class="flex items-center gap-2.5">
-          <img src="/logo.svg" alt="LearnHub" class="w-8 h-8" />
+          <img src="/logo.svg" alt="LearnHub logo" class="w-8 h-8 rounded-lg" />
           <span class="text-lg font-extrabold text-white">Learn<span class="text-brand-400">Hub</span></span>
         </div>
         <p class="mt-3 text-sm leading-relaxed max-w-xs">
@@ -21,7 +21,7 @@
       </div>
       <div>
         <div class="text-sm font-semibold text-white mb-3">Demo accounts</div>
-        <ul class="space-y-1.5 text-xs font-mono bg-slate-800/60 rounded-lg p-3">
+        <ul class="space-y-1.5 text-xs font-mono bg-slate-800/60 dark:bg-slate-800/40 rounded-lg p-3">
           <li>admin@learnhub.io / Admin123!</li>
           <li>sarah@learnhub.io / Teach123!</li>
           <li>emma@example.com / Study123!</li>

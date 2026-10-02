@@ -21,9 +21,17 @@ export default defineNuxtConfig({
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'LearnHub - a full-featured learning management platform for instructors, students and administrators.' }
+        { name: 'description', content: 'LearnHub - a full-featured learning management platform for instructors, students and administrators.' },
+        { name: 'theme-color', content: '#059669' }
       ],
-      link: [{ rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }]
+      link: [{ rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
+      script: [
+        {
+          // Apply the saved (or system) theme before first paint to avoid a flash of the wrong mode
+          innerHTML:
+            "(function(){try{var t=localStorage.getItem('lh-theme');if(t!=='dark'&&t!=='light'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}if(t==='dark'){document.documentElement.classList.add('dark')}}catch(e){}})()"
+        }
+      ]
     }
   },
   tailwindcss: {

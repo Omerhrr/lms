@@ -9,6 +9,9 @@ export interface AuthUser {
   is_active: boolean
 }
 
+// Shared in-flight /auth/me promise (module scope = shared across all useAuth() callers)
+let pendingMe: Promise<void> | null = null
+
 export const useAuth = () => {
   const user = useState<AuthUser | null>('auth:user', () => null)
   const { state: token, setTokens } = useAuthToken()
@@ -36,14 +39,23 @@ export const useAuth = () => {
     return res.user
   }
 
+  // Deduplicate concurrent /auth/me calls (app bootstrap + route middleware
+  // can both trigger on the first load of a guarded page). Module-scoped so
+  // every useAuth() instance shares the same in-flight promise.
   const fetchMe = async () => {
     if (!token.value) return
-    try {
-      user.value = await api.get<AuthUser>('/auth/me', undefined, true)
-    } catch {
-      setTokens(null, null)
-      user.value = null
-    }
+    if (pendingMe) return pendingMe
+    pendingMe = (async () => {
+      try {
+        user.value = await api.get<AuthUser>('/auth/me', undefined, true)
+      } catch {
+        setTokens(null, null)
+        user.value = null
+      } finally {
+        pendingMe = null
+      }
+    })()
+    return pendingMe
   }
 
   const logout = () => {

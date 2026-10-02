@@ -65,30 +65,32 @@ const doLogout = () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-slate-50">
+  <div class="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
     <!-- top bar -->
-    <header class="sticky top-0 z-40 bg-white border-b border-slate-200 h-14 flex items-center justify-between px-4 sm:px-6">
+    <header class="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 h-14 flex items-center justify-between px-4 sm:px-6">
       <div class="flex items-center gap-3">
-        <button class="lg:hidden p-2 rounded-lg hover:bg-slate-100" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle sidebar">
-          <component :is="sidebarOpen ? X : Menu" class="w-5 h-5 text-slate-600" />
+        <button class="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle sidebar">
+          <component :is="sidebarOpen ? X : Menu" class="w-5 h-5 text-slate-600 dark:text-slate-300" />
         </button>
-        <NuxtLink to="/" class="flex items-center gap-2">
-          <img src="/logo.svg" alt="LearnHub" class="w-8 h-8" />
-          <span class="text-lg font-extrabold tracking-tight text-slate-900 hidden sm:block">Learn<span class="text-brand-600">Hub</span></span>
+        <NuxtLink to="/" class="flex items-center gap-2 group">
+          <img src="/logo.svg" alt="LearnHub logo" class="w-8 h-8 rounded-lg transition-transform group-hover:scale-105" />
+          <span class="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white hidden sm:block">Learn<span class="text-brand-600 dark:text-brand-400">Hub</span></span>
         </NuxtLink>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
         <NuxtLink to="/" class="btn-ghost hidden sm:inline-flex text-sm"><Home class="w-4 h-4" /> Site</NuxtLink>
+        <ThemeToggle />
+        <NuxtLink to="/notifications" class="btn-ghost hidden sm:inline-flex text-sm !px-2" aria-label="Notifications"><Bell class="w-4.5 h-4.5" /></NuxtLink>
         <div class="flex items-center gap-2">
           <div class="w-8 h-8 rounded-full bg-brand-600 text-white text-sm font-bold flex items-center justify-center uppercase">
-            {{ auth.user.value?.full_name.slice(0, 1) }}
+            {{ auth.user.value?.full_name?.slice(0, 1) || '?' }}
           </div>
           <div class="hidden sm:block leading-tight">
-            <div class="text-sm font-semibold text-slate-800">{{ auth.user.value?.full_name }}</div>
-            <div class="text-[11px] text-slate-400 capitalize">{{ auth.user.value?.role }}</div>
+            <div class="text-sm font-semibold text-slate-800 dark:text-slate-100">{{ auth.user.value?.full_name }}</div>
+            <div class="text-[11px] text-slate-400 dark:text-slate-500 capitalize">{{ auth.user.value?.role }}</div>
           </div>
         </div>
-        <button @click="doLogout" class="p-2 rounded-lg hover:bg-slate-100 text-slate-400" aria-label="Sign out">
+        <button @click="doLogout" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-rose-500 transition" aria-label="Sign out">
           <LogOut class="w-4.5 h-4.5" />
         </button>
       </div>
@@ -97,20 +99,20 @@ const doLogout = () => {
     <div class="flex flex-1">
       <!-- sidebar -->
       <aside
-        class="fixed lg:sticky top-14 z-30 h-[calc(100vh-3.5rem)] w-64 bg-white border-r border-slate-200 py-4 px-3 overflow-y-auto nice-scroll transition-transform"
+        class="fixed lg:sticky top-14 z-30 h-[calc(100vh-3.5rem)] w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 py-4 px-3 overflow-y-auto nice-scroll transition-transform"
         :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'">
         <nav class="space-y-0.5">
           <NuxtLink v-for="item in navMain" :key="item.to" :to="item.to"
             class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition"
-            :class="route.path === item.to ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50'">
+            :class="route.path === item.to ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'">
             <component :is="item.icon" class="w-4.5 h-4.5" />
             {{ item.label }}
           </NuxtLink>
 
-          <div class="pt-3 pb-1 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Account</div>
+          <div class="pt-3 pb-1 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Account</div>
           <NuxtLink v-for="item in navShared" :key="item.to" :to="item.to"
             class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition"
-            :class="route.path.startsWith(item.to) ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50'">
+            :class="route.path.startsWith(item.to) ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'">
             <component :is="item.icon" class="w-4.5 h-4.5" />
             {{ item.label }}
           </NuxtLink>
@@ -118,13 +120,13 @@ const doLogout = () => {
 
         <!-- course manage subnav -->
         <template v-if="teachTabs">
-          <div class="pt-4 pb-1 px-3 border-t border-slate-100 mt-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          <div class="pt-4 pb-1 px-3 border-t border-slate-100 dark:border-slate-800 mt-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Manage course
           </div>
           <nav class="space-y-0.5">
             <NuxtLink v-for="t in teachTabs" :key="t.to" :to="t.to"
               class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition"
-              :class="route.path === t.to ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'">
+              :class="route.path === t.to ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 font-semibold' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'">
               <component :is="t.icon" class="w-4 h-4" />
               {{ t.label }}
             </NuxtLink>
@@ -133,7 +135,7 @@ const doLogout = () => {
       </aside>
 
       <!-- overlay for mobile -->
-      <div v-if="sidebarOpen" class="fixed inset-0 top-14 bg-slate-900/30 z-20 lg:hidden" @click="sidebarOpen = false" />
+      <div v-if="sidebarOpen" class="fixed inset-0 top-14 bg-slate-900/50 dark:bg-black/60 z-20 lg:hidden" @click="sidebarOpen = false" />
 
       <main class="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 w-full">
         <slot />
