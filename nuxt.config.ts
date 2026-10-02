@@ -24,7 +24,13 @@ export default defineNuxtConfig({
         { name: 'description', content: 'LearnHub - a full-featured learning management platform for instructors, students and administrators.' },
         { name: 'theme-color', content: '#059669' }
       ],
-      link: [{ rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' },
+        { rel: 'icon', type: 'image/png', sizes: '192x192', href: '/icon-192.png' },
+        { rel: 'icon', type: 'image/png', sizes: '512x512', href: '/icon-512.png' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' }
+      ],
       script: [
         {
           // Apply the saved (or system) theme before first paint to avoid a flash of the wrong mode
