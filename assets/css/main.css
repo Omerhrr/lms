@@ -127,3 +127,9 @@ html.dark { color-scheme: dark; }
 /* theme toggle icon transition */
 .theme-icon-enter-active, .theme-icon-leave-active { transition: opacity .15s ease, transform .15s ease; }
 .theme-icon-enter-from, .theme-icon-leave-to { opacity: 0; transform: rotate(-45deg) scale(.6); }
+
+/* lesson player renders on a dark surface regardless of theme */
+.lesson-dark .rich-text code { background-color: #1e293b; color: #e2e8f0; }
+.lesson-dark .rich-text blockquote { color: #cbd5e1; }
+.lesson-dark .rich-text a { color: #34d399; }
+.rich-text img { max-width: 100%; height: auto; }

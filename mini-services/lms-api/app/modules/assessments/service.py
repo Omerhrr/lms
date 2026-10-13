@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
@@ -12,7 +14,31 @@ class AssessmentService:
     # ---------- quizzes (instructor) ----------
 
     @staticmethod
+    def _quiz_settings(data: dict) -> dict:
+        out = {}
+        try:
+            if data.get("passing_score") is not None:
+                out["passing_score"] = float(data["passing_score"])
+                if not 0 <= out["passing_score"] <= 100:
+                    raise ValueError
+            if data.get("max_attempts") is not None:
+                out["max_attempts"] = int(data["max_attempts"])
+                if out["max_attempts"] < 0:
+                    raise ValueError
+            if data.get("time_limit_minutes") not in (None, "", 0):
+                out["time_limit_minutes"] = int(data["time_limit_minutes"])
+                if out["time_limit_minutes"] <= 0:
+                    raise ValueError
+        except (TypeError, ValueError):
+            raise HTTPException(400, "Invalid quiz settings (passing score 0-100, attempts >= 0, time limit > 0)")
+        return out
+
+    @staticmethod
     def upsert_quiz(db: Session, lesson_id: int, data: dict) -> Quiz:
+        clean = AssessmentService._quiz_settings(data)
+        data = {**data, **clean}
+        if data.get("time_limit_minutes") in ("", 0):
+            data["time_limit_minutes"] = None
         quiz = db.query(Quiz).filter(Quiz.lesson_id == lesson_id).first()
         if quiz:
             quiz.title = data.get("title") or quiz.title
@@ -42,15 +68,30 @@ class AssessmentService:
         return quiz
 
     @staticmethod
+    def _validate_question(qtype: str, text, options, correct) -> None:
+        if not isinstance(text, str) or not text.strip():
+            raise HTTPException(400, "Question text is required")
+        if not isinstance(correct, list) or not correct:
+            raise HTTPException(400, "Mark at least one correct answer")
+        if qtype in ("single_choice", "multi_choice", "true_false"):
+            if not isinstance(options, list) or len(options) < 2:
+                raise HTTPException(400, "Choice questions need at least two options")
+            try:
+                idx = [int(c) for c in correct]
+            except (TypeError, ValueError):
+                raise HTTPException(400, "Correct answers must be option indexes")
+            if any(i < 0 or i >= len(options) for i in idx):
+                raise HTTPException(400, "A correct answer points at an option that doesn't exist")
+            if qtype != "multi_choice" and len(idx) != 1:
+                raise HTTPException(400, "Single-choice questions have exactly one correct answer")
+
+    @staticmethod
     def add_question(db: Session, quiz: Quiz, data: dict) -> Question:
         qtype = data.get("type", "single_choice")
         if qtype not in QuestionType.__members__:
             raise HTTPException(400, f"Unknown question type '{qtype}'")
-        if qtype in ("single_choice", "multi_choice", "true_false") and not data.get("options"):
-            raise HTTPException(400, "Options are required for choice questions")
         correct = data.get("correct")
-        if not correct:
-            raise HTTPException(400, "Mark at least one correct answer")
+        AssessmentService._validate_question(qtype, data.get("text"), data.get("options"), correct)
         pos = db.query(func.coalesce(func.max(Question.position), -1)).filter(Question.quiz_id == quiz.id).scalar() + 1
         q = Question(
             quiz_id=quiz.id,
@@ -58,7 +99,7 @@ class AssessmentService:
             text=data["text"],
             options=data.get("options") or [],
             correct=correct,
-            points=data.get("points", 1.0),
+            points=AssessmentService._points(data.get("points", 1.0)),
             explanation=data.get("explanation"),
             position=pos,
         )
@@ -68,12 +109,29 @@ class AssessmentService:
         return q
 
     @staticmethod
+    def _points(value) -> float:
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "Points must be a number")
+        if not 0 < v <= 1000:
+            raise HTTPException(400, "Points must be between 0 and 1000")
+        return v
+
+    @staticmethod
     def update_question(db: Session, question: Question, data: dict) -> Question:
-        if "type" in data and data["type"]:
-            question.type = QuestionType(data["type"])
-        for f in ("text", "options", "correct", "points", "explanation"):
+        qtype = data.get("type") or question.type.value
+        if qtype not in QuestionType.__members__:
+            raise HTTPException(400, f"Unknown question type '{qtype}'")
+        merged = {f: data[f] if data.get(f) is not None else getattr(question, f)
+                  for f in ("text", "options", "correct")}
+        AssessmentService._validate_question(qtype, merged["text"], merged["options"], merged["correct"])
+        question.type = QuestionType(qtype)
+        for f in ("text", "options", "correct", "explanation"):
             if f in data and data[f] is not None:
                 setattr(question, f, data[f])
+        if data.get("points") is not None:
+            question.points = AssessmentService._points(data["points"])
         db.commit()
         return question
 
@@ -94,7 +152,12 @@ class AssessmentService:
         best = max((a.score for a in attempts), default=None)
         passed_before = any(a.passed for a in attempts)
         blocked = passed_before or (quiz.max_attempts and len(attempts) >= quiz.max_attempts)
+        session_token = None
+        if quiz.time_limit_minutes and not blocked:
+            from app.core.security import create_quiz_session_token
+            session_token = create_quiz_session_token(quiz.id, user_id)
         return {
+            "session_token": session_token,
             "id": quiz.id,
             "title": quiz.title,
             "description": quiz.description,
@@ -132,12 +195,31 @@ class AssessmentService:
         return any(given == str(c).strip().lower() for c in question.correct)
 
     @staticmethod
-    def submit_attempt(db: Session, quiz: Quiz, user_id: int, answers: dict) -> dict:
+    def _check_time_limit(quiz: Quiz, user_id: int, session_token: str | None) -> None:
+        if not quiz.time_limit_minutes:
+            return
+        from app.core.security import decode_token
+        try:
+            payload = decode_token(session_token or "")
+        except Exception:
+            raise HTTPException(400, "This quiz is timed - reload it to start a new attempt")
+        if payload.get("type") != "quiz" or payload.get("quiz") != quiz.id or payload.get("sub") != str(user_id):
+            raise HTTPException(400, "This quiz is timed - reload it to start a new attempt")
+        from app.shared.utils import utcnow
+        started = datetime.fromtimestamp(payload["iat"], timezone.utc).replace(tzinfo=None)
+        grace = timedelta(seconds=30)  # network latency allowance
+        if utcnow() - started > timedelta(minutes=quiz.time_limit_minutes) + grace:
+            raise HTTPException(400, "Time is up for this attempt")
+
+    @staticmethod
+    def submit_attempt(db: Session, quiz: Quiz, user_id: int, answers: dict, session_token: str | None = None) -> dict:
         attempts = db.query(QuizAttempt).filter(QuizAttempt.quiz_id == quiz.id, QuizAttempt.user_id == user_id).all()
         if any(a.passed for a in attempts):
             raise HTTPException(400, "You already passed this quiz")
         if quiz.max_attempts and len(attempts) >= quiz.max_attempts:
             raise HTTPException(400, "Maximum number of attempts reached")
+        AssessmentService._check_time_limit(quiz, user_id, session_token)
+        answers = {str(k): v for k, v in list(answers.items())[:500]}
 
         total_points = sum(q.points for q in quiz.questions) or 1
         earned = 0.0
@@ -151,6 +233,13 @@ class AssessmentService:
 
         score = round(earned / total_points * 100, 1)
         passed = score >= quiz.passing_score
+        attempts_left = (quiz.max_attempts - len(attempts) - 1) if quiz.max_attempts else None
+        # Only reveal the answer key once the learner can't use it to retake the quiz.
+        reveal = passed or attempts_left == 0
+        if not reveal:
+            for d in detail.values():
+                d.pop("correct_answers", None)
+                d.pop("explanation", None)
         attempt = QuizAttempt(quiz_id=quiz.id, user_id=user_id, answers=answers, score=score, passed=passed)
         db.add(attempt)
         db.commit()
@@ -182,22 +271,48 @@ class AssessmentService:
             "score": score,
             "passed": passed,
             "passing_score": quiz.passing_score,
+            "answers_revealed": reveal,
+            "attempts_left": attempts_left,
             "detail": detail,
         }
 
     # ---------- assignments ----------
 
     @staticmethod
+    def apply_assignment_fields(a: Assignment, data: dict) -> None:
+        """Validate and copy the editable assignment fields (and nothing else)."""
+        if data.get("title") is not None:
+            title = str(data["title"]).strip()
+            if not title or len(title) > 255:
+                raise HTTPException(400, "Assignment title must be 1-255 characters")
+            a.title = title
+        if data.get("instructions") is not None:
+            a.instructions = str(data["instructions"])[:50_000]
+        if data.get("max_points") is not None:
+            try:
+                mp = float(data["max_points"])
+            except (TypeError, ValueError):
+                raise HTTPException(400, "max_points must be a number")
+            if not 0 < mp <= 10_000:
+                raise HTTPException(400, "max_points must be between 0 and 10000")
+            a.max_points = mp
+        if data.get("allow_file") is not None:
+            a.allow_file = bool(data["allow_file"])
+        if "due_date" in data:
+            due = data["due_date"]
+            if due in (None, ""):
+                a.due_date = None
+            else:
+                try:
+                    a.due_date = datetime.fromisoformat(str(due).replace("Z", "+00:00")).replace(tzinfo=None)
+                except ValueError:
+                    raise HTTPException(400, "due_date must be an ISO date, e.g. 2026-12-31T23:59")
+
+    @staticmethod
     def add_assignment(db: Session, course_id: int, data: dict, position: int) -> Assignment:
-        a = Assignment(
-            course_id=course_id,
-            title=data["title"],
-            instructions=data.get("instructions", ""),
-            due_date=data.get("due_date"),
-            max_points=data.get("max_points", 100.0),
-            allow_file=data.get("allow_file", True),
-            position=position,
-        )
+        a = Assignment(course_id=course_id, title="", instructions="", max_points=100.0,
+                       allow_file=True, position=position)
+        AssessmentService.apply_assignment_fields(a, data)
         db.add(a)
         db.commit()
         db.refresh(a)
@@ -205,6 +320,8 @@ class AssessmentService:
 
     @staticmethod
     def submit_assignment(db: Session, assignment: Assignment, user_id: int, text_response: str | None, file_url: str | None) -> Submission:
+        from app.shared.utils import safe_url
+        file_url = safe_url(file_url, "file_url")
         if not text_response and not file_url:
             raise HTTPException(400, "Provide a written response or attach a file")
         if file_url and not assignment.allow_file:
@@ -236,8 +353,11 @@ class AssessmentService:
 
     @staticmethod
     def grade_submission(db: Session, submission: Submission, grade: float, feedback: str | None, grader_id: int) -> Submission:
-        if grade < 0 or grade > 1_000_000:
-            raise HTTPException(400, "Invalid grade")
+        cap = db.get(Assignment, submission.assignment_id).max_points
+        if grade < 0 or grade > cap:
+            raise HTTPException(400, f"Grade must be between 0 and {cap:g}")
+        if feedback is not None:
+            feedback = str(feedback)[:20_000]
         submission.grade = grade
         submission.feedback = feedback
         submission.graded_by = grader_id
@@ -250,6 +370,12 @@ class AssessmentService:
         from app.modules.courses.models import Course
         assignment = db.get(Assignment, submission.assignment_id)
         course = db.get(Course, assignment.course_id) if assignment else None
+        from app.modules.auth.models import User as _U
+        from app.shared import emails
+        student = db.get(_U, submission.user_id)
+        if student and assignment and course:
+            emails.assignment_graded(student.email, student.full_name, assignment.title,
+                                     f"{grade:g}/{assignment.max_points:g}", course.slug)
         notify(db, submission.user_id, "grade", "Assignment graded",
                f"“{assignment.title}” was graded: {grade}/{assignment.max_points:.0f}.",
                "/dashboard" if not course else f"/learn/{course.slug}")
@@ -259,42 +385,47 @@ class AssessmentService:
 
     @staticmethod
     def gradebook(db: Session, course_id: int) -> dict:
+        """Batched: a fixed number of queries regardless of class size."""
+        from collections import defaultdict
         from app.modules.enrollments.models import Enrollment
         from app.modules.courses.models import Lesson, LessonType
 
-        rows = []
         assignments = sorted(
             db.query(Assignment).filter(Assignment.course_id == course_id).all(), key=lambda a: a.position)
-        quiz_lessons = (
-            db.query(Lesson).filter(Lesson.course_id == course_id, Lesson.type == LessonType.quiz).all()
+        quiz_rows = (
+            db.query(Lesson, Quiz).join(Quiz, Quiz.lesson_id == Lesson.id)
+            .filter(Lesson.course_id == course_id, Lesson.type == LessonType.quiz)
+            .order_by(Lesson.position).all()
         )
-        quizzes = {l.id: db.query(Quiz).filter(Quiz.lesson_id == l.id).first() for l in quiz_lessons}
-        quiz_meta = [{"lesson_id": l.id, "lesson_title": l.title, "quiz_id": quizzes[l.id].id}
-                     for l in quiz_lessons if quizzes[l.id]]
+        quiz_meta = [{"lesson_id": l.id, "lesson_title": l.title, "quiz_id": q.id} for l, q in quiz_rows]
+        quiz_ids = [m["quiz_id"] for m in quiz_meta]
 
-        enrollments = (
-            db.query(Enrollment).options(joinedload(Enrollment.user))
-            .filter(Enrollment.course_id == course_id).order_by(Enrollment.enrolled_at).all()
-        )
+        enrollments = [
+            e for e in db.query(Enrollment).options(joinedload(Enrollment.user))
+            .filter(Enrollment.course_id == course_id).order_by(Enrollment.enrolled_at).all() if e.user
+        ]
+        attempts = defaultdict(list)   # (quiz_id, user_id) -> [attempt]
+        if quiz_ids:
+            for a in db.query(QuizAttempt).filter(QuizAttempt.quiz_id.in_(quiz_ids)).all():
+                attempts[(a.quiz_id, a.user_id)].append(a)
+        subs = {}
+        if assignments:
+            for sub in db.query(Submission).filter(Submission.assignment_id.in_([a.id for a in assignments])).all():
+                subs[(sub.assignment_id, sub.user_id)] = sub
+
+        rows = []
         for e in enrollments:
+            uid = e.user.id
             row = {
-                "user": {"id": e.user.id, "full_name": e.user.full_name, "email": e.user.email},
-                "progress": e.progress,
-                "quizzes": [],
-                "assignments": [],
+                "user": {"id": uid, "full_name": e.user.full_name, "email": e.user.email},
+                "progress": e.progress, "quizzes": [], "assignments": [],
             }
             for meta in quiz_meta:
-                attempts = (
-                    db.query(QuizAttempt).filter(
-                        QuizAttempt.quiz_id == meta["quiz_id"], QuizAttempt.user_id == e.user.id).all()
-                )
-                best = max((a.score for a in attempts), default=None)
-                row["quizzes"].append({**meta, "best_score": best,
-                                       "passed": any(a.passed for a in attempts),
-                                       "attempts": len(attempts)})
+                ats = attempts.get((meta["quiz_id"], uid), [])
+                row["quizzes"].append({**meta, "best_score": max((a.score for a in ats), default=None),
+                                       "passed": any(a.passed for a in ats), "attempts": len(ats)})
             for a in assignments:
-                sub = db.query(Submission).filter(
-                    Submission.assignment_id == a.id, Submission.user_id == e.user.id).first()
+                sub = subs.get((a.id, uid))
                 row["assignments"].append({
                     "assignment_id": a.id, "title": a.title, "max_points": a.max_points,
                     "status": sub.status if sub else None,

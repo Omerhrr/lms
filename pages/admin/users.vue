@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Search, Trash2, ShieldCheck, Ban, CheckCircle2 } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'User management - LearnHub' })
+useSeoMeta({ title: 'User management - Infohive' })
 definePageMeta({ middleware: 'admin', layout: 'dashboard' })
 
 const api = useApi()
@@ -23,7 +23,8 @@ const load = async () => {
   try {
     const res = await api.get<any>('/users', {
       search: search.value || undefined,
-      role: roleFilter.value || undefined,
+      role: roleFilter.value && roleFilter.value !== 'requested' ? roleFilter.value : undefined,
+      instructor_requested: roleFilter.value === 'requested' ? true : undefined,
       page: page.value, size: 15,
     })
     items.value = res.items
@@ -44,7 +45,16 @@ const setRole = async (u: any, role: string) => {
   try {
     await api.put(`/users/${u.id}?role=${role}`)
     u.role = role
+    u.instructor_requested = false
     show(`${u.full_name} is now a ${role}`)
+  } catch { /* the api client already showed the error */ }
+}
+
+const declineRequest = async (u: any) => {
+  try {
+    await api.put(`/users/${u.id}?role=student`)
+    u.instructor_requested = false
+    show('Instructor request declined', 'info')
   } catch { /* the api client already showed the error */ }
 }
 
@@ -57,7 +67,7 @@ const toggleActive = async (u: any) => {
 }
 
 const remove = async (u: any) => {
-  if (!confirm(`Delete ${u.full_name}? All their courses/enrollments will be removed.`)) return
+  if (!confirm(`Delete ${u.full_name}? Their enrollments, submissions and posts will be removed. (Instructors who still own courses can't be deleted - deactivate them instead.)`)) return
   try {
     await api.del(`/users/${u.id}`)
     show('User deleted', 'info')
@@ -75,13 +85,14 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString()
         <h1 class="text-2xl font-extrabold text-slate-900">User management</h1>
         <p class="text-slate-500 mt-1">{{ total }} registered users</p>
       </div>
-      <div class="flex gap-2">
-        <div class="relative">
+      <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+        <div class="relative flex-1 sm:flex-none">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input v-model="search" placeholder="Search name or email…" class="input pl-9 w-56" />
+          <input v-model="search" placeholder="Search name or email…" class="input pl-9 w-full sm:w-56" />
         </div>
-        <select v-model="roleFilter" class="input w-auto">
+        <select v-model="roleFilter" class="input w-full sm:w-auto">
           <option value="">All roles</option>
+          <option value="requested">Instructor requests</option>
           <option value="admin">Admins</option>
           <option value="instructor">Instructors</option>
           <option value="student">Students</option>
@@ -99,7 +110,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString()
             <td>
               <div class="flex items-center gap-3">
                 <div class="w-9 h-9 rounded-full bg-brand-600 text-white text-sm font-bold flex items-center justify-center uppercase shrink-0">
-                  <img v-if="u.avatar_url" :src="u.avatar_url" class="w-full h-full rounded-full object-cover" alt="" />
+                  <img v-if="safeUrl(u.avatar_url)" :src="safeUrl(u.avatar_url)" class="w-full h-full rounded-full object-cover" alt="" />
                   <template v-else>{{ u.full_name.slice(0, 1) }}</template>
                 </div>
                 <div>
@@ -118,6 +129,11 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString()
                 <option value="student">student</option>
               </select>
               <span v-else class="badge bg-slate-100 text-slate-600 capitalize">{{ u.role }}</span>
+              <div v-if="u.instructor_requested" class="mt-1.5 flex items-center gap-1">
+                <span class="badge bg-amber-100 text-amber-800">wants to teach</span>
+                <button class="text-xs font-semibold text-brand-700 hover:underline" @click="setRole(u, 'instructor')">Approve</button>
+                <button class="text-xs text-slate-400 hover:underline" @click="declineRequest(u)">Decline</button>
+              </div>
             </td>
             <td>
               <span class="badge" :class="u.is_active ? 'bg-brand-50 text-brand-700' : 'bg-rose-50 text-rose-600'">

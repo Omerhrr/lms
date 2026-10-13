@@ -17,7 +17,7 @@ const announcements = ref<any[]>([])
 const assignments = ref<any[]>([])
 const loading = ref(true)
 const enrolling = ref(false)
-const tab = ref<'overview' | 'curriculum' | 'discussion' | 'assignments' | 'announcements' | 'reviews'>('overview')
+const tab = ref<'overview' | 'curriculum' | 'live' | 'discussion' | 'assignments' | 'announcements' | 'reviews'>('overview')
 const expanded = ref<Set<number>>(new Set())
 
 const myReview = ref({ rating: 5, comment: '' })
@@ -39,9 +39,7 @@ const load = async () => {
   try {
     course.value = await api.get<any>(`/courses/${route.params.slug}`, undefined, true)
     if (!course.value) { loading.value = false; return }
-    if (auth.token.value) {
-      await auth.fetchMe()
-    }
+    if (auth.hasSession.value) await auth.fetchMe()
     if (course.value.is_enrolled) {
       reviews.value = await api.get<any[]>(`/courses/${route.params.slug}/reviews`, undefined, true).catch(() => [])
       threads.value = await api.get<any[]>(`/courses/${course.value.id}/discussions`, undefined, true).catch(() => [])
@@ -54,6 +52,8 @@ const load = async () => {
         loadThread(wanted)
       } else if (route.query.tab === 'discussion') {
         tab.value = 'discussion'
+      } else if (['live', 'assignments', 'announcements'].includes(String(route.query.tab))) {
+        tab.value = route.query.tab as any
       }
     } else {
       reviews.value = await api.get<any[]>(`/courses/${route.params.slug}/reviews`, undefined, true).catch(() => [])
@@ -63,10 +63,20 @@ const load = async () => {
   } finally { loading.value = false }
 }
 
+const { config: platform, money } = usePlatform()
+const isPaid = computed(() => (course.value?.price || 0) > 0)
+const canCheckout = computed(() => isPaid.value && platform.value.payments_enabled)
+
 const enroll = async () => {
   if (!auth.isLoggedIn.value) return navigateTo({ path: '/login', query: { redirect: route.fullPath } })
   enrolling.value = true
   try {
+    if (canCheckout.value) {
+      // paid course: go to Paystack's secure checkout; they send the student back to /payments/callback
+      const res = await api.post<{ authorization_url: string }>('/payments/checkout', { course_id: course.value.id })
+      window.location.href = res.authorization_url
+      return
+    }
     await api.post(`/enrollments/${course.value.id}`)
     show(`You're enrolled in "${course.value.title}"! 🎉`)
     const firstLesson = firstPreviewableLesson()
@@ -80,7 +90,8 @@ const firstPreviewableLesson = () => {
   return null
 }
 
-const canWatch = (l: any) => l.is_preview || course.value?.is_enrolled || course.value?.can_manage
+const canWatch = (l: any) => !l.unlocks_at && (l.is_preview || course.value?.is_enrolled || course.value?.can_manage)
+const fmtUnlock = (iso: string) => new Date(iso + (iso.endsWith('Z') ? '' : 'Z')).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 
 const toggle = (sid: number) => {
   if (expanded.value.has(sid)) expanded.value.delete(sid)
@@ -227,12 +238,12 @@ watch(() => route.params.slug, load)
         <div class="lg:justify-self-end w-full max-w-sm">
           <div class="card !bg-white text-slate-800 overflow-hidden">
             <div class="h-40 bg-gradient-to-br from-brand-500 to-slate-800 relative flex items-center justify-center">
-              <img v-if="course.thumbnail_url" :src="course.thumbnail_url" class="w-full h-full object-cover" alt="" />
+              <img v-if="safeUrl(course.thumbnail_url)" :src="safeUrl(course.thumbnail_url)" class="w-full h-full object-cover" alt="" />
               <GraduationCap v-else class="w-12 h-12 text-white/40" />
             </div>
             <div class="p-5">
               <div class="flex items-baseline gap-2 mb-4">
-                <span class="text-3xl font-extrabold">{{ course.price === 0 ? 'Free' : `$${course.price.toFixed(2)}` }}</span>
+                <span class="text-3xl font-extrabold">{{ money(course.price) }}</span>
                 <span v-if="course.price === 0" class="badge bg-amber-100 text-amber-800">No credit card needed</span>
               </div>
 
@@ -245,10 +256,25 @@ watch(() => route.params.slug, load)
               <template v-else-if="course.can_manage">
                 <NuxtLink :to="`/teach/courses/${course.id}/edit`" class="btn-secondary w-full py-3">Manage this course</NuxtLink>
               </template>
+              <div v-else-if="course.prerequisites?.length && !course.prerequisites_met" class="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                <p class="font-semibold flex items-center gap-1.5"><Lock class="w-4 h-4" /> Complete these first</p>
+                <ul class="mt-2 space-y-1">
+                  <li v-for="p in course.prerequisites" :key="p.id" class="flex items-center gap-2">
+                    <component :is="p.completed ? CheckCircle2 : Lock" class="w-3.5 h-3.5 shrink-0" :class="p.completed ? 'text-brand-600' : 'text-amber-600'" />
+                    <NuxtLink :to="`/courses/${p.slug}`" class="hover:underline">{{ p.title }}</NuxtLink>
+                  </li>
+                </ul>
+              </div>
               <button v-else class="btn-primary w-full py-3 text-base" :disabled="enrolling" @click="enroll">
-                {{ enrolling ? 'Enrolling…' : (course.price === 0 ? 'Enroll for free' : `Enroll now · $${course.price.toFixed(2)}`) }}
+                {{ enrolling ? (canCheckout ? 'Opening secure checkout…' : 'Enrolling…') : (!isPaid ? 'Enroll for free' : canCheckout ? `Buy now · ${money(course.price)}` : `Enroll · ${money(course.price)}`) }}
               </button>
 
+              <p v-if="canCheckout && !course.is_enrolled && !course.can_manage" class="mt-2 text-xs text-slate-500 text-center">
+                Secure payment by Paystack · card, bank transfer or USSD
+              </p>
+              <p v-if="course.prerequisites?.length && course.prerequisites_met" class="mt-3 text-xs text-slate-500">
+                Requires: {{ course.prerequisites.map((p: any) => p.title).join(', ') }} ✓
+              </p>
               <ul class="mt-4 space-y-2 text-sm text-slate-600">
                 <li class="flex gap-2"><CheckCircle2 class="w-4 h-4 text-brand-600 shrink-0" /> {{ course.lesson_count }} lessons across {{ course.sections.length }} sections</li>
                 <li class="flex gap-2"><CheckCircle2 class="w-4 h-4 text-brand-600 shrink-0" /> Quizzes with instant auto-grading</li>
@@ -266,7 +292,7 @@ watch(() => route.params.slug, load)
       <div class="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto">
         <button v-for="t in [
           ['overview', 'Overview'], ['curriculum', 'Curriculum'],
-          ...(course.is_enrolled || course.can_manage ? [['discussion', 'Q&A'], ['assignments', 'Assignments'], ['announcements', 'Announcements']] : []),
+          ...(course.is_enrolled || course.can_manage ? [['live', 'Live classes'], ['discussion', 'Q&A'], ['assignments', 'Assignments'], ['announcements', 'Announcements']] : []),
           ['reviews', 'Reviews'],
         ]" :key="t[0]" @click="tab = t[0] as any"
           class="px-4 py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap"
@@ -306,13 +332,15 @@ watch(() => route.params.slug, load)
               <component :is="expanded.has(s.id) ? Check : Eye" class="w-4 h-4 text-slate-400" />
             </button>
             <div v-if="expanded.has(s.id)" class="border-t border-slate-100 divide-y divide-slate-50">
-              <div v-for="l in s.lessons" :key="l.id" class="flex items-center gap-3 px-5 py-3">
+              <div v-for="l in s.lessons" :key="l.id" class="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 px-4 sm:px-5 py-3">
                 <component :is="lessonIcon(l.type)" class="w-4.5 h-4.5 shrink-0" :class="canWatch(l) ? 'text-brand-600' : 'text-slate-300'" />
-                <span class="text-sm flex-1" :class="canWatch(l) ? 'text-slate-700' : 'text-slate-400'">{{ l.title }}</span>
+                <span class="text-sm flex-1 min-w-0" :class="canWatch(l) ? 'text-slate-700' : 'text-slate-400'">{{ l.title }}</span>
                 <span v-if="l.is_preview" class="badge bg-brand-50 text-brand-700">Preview</span>
                 <span class="text-xs text-slate-400">{{ l.duration_minutes }} min</span>
+                <span v-if="l.unlocks_at" class="badge bg-amber-50 text-amber-700">Opens {{ fmtUnlock(l.unlocks_at) }}</span>
+                <span v-else-if="l.drip_days && !course.is_enrolled" class="text-xs text-slate-400">day {{ l.drip_days }}</span>
                 <NuxtLink v-if="canWatch(l)" :to="`/learn/${course.slug}/${l.id}`"
-                  class="text-xs font-semibold text-brand-700 hover:underline">Watch</NuxtLink>
+                  class="text-xs font-semibold text-brand-700 hover:underline">{{ l.type === 'video' ? 'Watch' : 'Open' }}</NuxtLink>
                 <Lock v-else class="w-3.5 h-3.5 text-slate-300" />
               </div>
             </div>
@@ -389,7 +417,7 @@ watch(() => route.params.slug, load)
                 <Upload class="w-4 h-4" /> {{ formFor(a).file_url ? 'File attached ✓' : 'Attach file' }}
                 <input type="file" class="hidden" @change="onSubmissionFile(a, $event)" />
               </label>
-              <a v-if="formFor(a).file_url" :href="formFor(a).file_url" target="_blank" class="text-xs text-brand-700 hover:underline">View attached file</a>
+              <a v-if="safeUrl(formFor(a).file_url)" :href="safeUrl(formFor(a).file_url)" rel="noopener noreferrer" target="_blank" class="text-xs text-brand-700 hover:underline">View attached file</a>
               <button class="btn-primary text-sm ml-auto" :disabled="submitting === a.id" @click="submitAssignment(a)">
                 <Send class="w-3.5 h-3.5" /> {{ submitting === a.id ? 'Submitting…' : 'Submit' }}
               </button>
@@ -399,6 +427,14 @@ watch(() => route.params.slug, load)
       </div>
 
       <!-- announcements -->
+      <div v-else-if="tab === 'live'" class="max-w-3xl mx-auto">
+        <div class="flex items-center justify-between gap-3 mb-4">
+          <h3 class="font-bold text-slate-800">Live classes</h3>
+          <NuxtLink v-if="course.can_manage" :to="`/teach/courses/${course.id}/live`" class="btn-secondary text-sm">Schedule a class</NuxtLink>
+        </div>
+        <LiveSessionList :course-id="course.id" />
+      </div>
+
       <div v-else-if="tab === 'announcements'" class="max-w-3xl mx-auto space-y-4">
         <EmptyState v-if="announcements.length === 0" empty>No announcements yet.</EmptyState>
         <div v-for="a in announcements" :key="a.id" class="card p-5 flex gap-4">

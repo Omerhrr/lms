@@ -89,6 +89,8 @@ class Lesson(Base):
     duration_minutes: Mapped[int] = mapped_column(Integer, default=5)
     position: Mapped[int] = mapped_column(Integer, default=0)
     is_preview: Mapped[bool] = mapped_column(Boolean, default=False)
+    # drip release: lesson unlocks this many days after the student enrolls (None/0 = immediately)
+    drip_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[object] = mapped_column(DateTime, default=utcnow)
 
     section = relationship("Section", back_populates="lessons")
@@ -107,3 +109,13 @@ class Review(Base):
 
     course = relationship("Course", back_populates="reviews")
     user = relationship("User", foreign_keys=[user_id])
+
+
+class CoursePrerequisite(Base):
+    """`course_id` requires the student to have completed `prerequisite_id` first."""
+    __tablename__ = "course_prerequisites"
+    __table_args__ = (UniqueConstraint("course_id", "prerequisite_id", name="uq_course_prerequisite"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), index=True)
+    prerequisite_id: Mapped[int] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), index=True)

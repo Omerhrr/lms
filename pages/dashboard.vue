@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { BookOpen, Trophy, Flame, TrendingUp, PlayCircle, Clock } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'My Learning - LearnHub' })
+useSeoMeta({ title: 'My Learning - Infohive' })
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
 const api = useApi()
@@ -38,31 +38,37 @@ onMounted(async () => {
     </div>
 
     <!-- stat cards -->
-    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <div class="card p-5 flex items-center gap-4">
-        <div class="w-11 h-11 rounded-xl bg-brand-50 flex items-center justify-center"><BookOpen class="w-5.5 h-5.5 text-brand-600" /></div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+      <div class="card p-3.5 sm:p-5 flex items-center gap-3 sm:gap-4 min-w-0">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-xl bg-brand-50 flex items-center justify-center"><BookOpen class="w-5.5 h-5.5 text-brand-600" /></div>
         <div><div class="text-2xl font-extrabold text-slate-900">{{ enrollments.length }}</div><div class="text-xs text-slate-400">Enrolled courses</div></div>
       </div>
-      <div class="card p-5 flex items-center gap-4">
-        <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center"><Flame class="w-5.5 h-5.5 text-amber-500" /></div>
+      <div class="card p-3.5 sm:p-5 flex items-center gap-3 sm:gap-4 min-w-0">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-xl bg-amber-50 flex items-center justify-center"><Flame class="w-5.5 h-5.5 text-amber-500" /></div>
         <div><div class="text-2xl font-extrabold text-slate-900">{{ inProgress.length }}</div><div class="text-xs text-slate-400">In progress</div></div>
       </div>
-      <div class="card p-5 flex items-center gap-4">
-        <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center"><Trophy class="w-5.5 h-5.5 text-emerald-600" /></div>
+      <div class="card p-3.5 sm:p-5 flex items-center gap-3 sm:gap-4 min-w-0">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-xl bg-emerald-50 flex items-center justify-center"><Trophy class="w-5.5 h-5.5 text-emerald-600" /></div>
         <div><div class="text-2xl font-extrabold text-slate-900">{{ certificates.length }}</div><div class="text-xs text-slate-400">Certificates</div></div>
       </div>
-      <div class="card p-5 flex items-center gap-4">
-        <div class="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center"><TrendingUp class="w-5.5 h-5.5 text-slate-500" /></div>
+      <div class="card p-3.5 sm:p-5 flex items-center gap-3 sm:gap-4 min-w-0">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-xl bg-slate-100 flex items-center justify-center"><TrendingUp class="w-5.5 h-5.5 text-slate-500" /></div>
         <div><div class="text-2xl font-extrabold text-slate-900">{{ avgProgress }}%</div><div class="text-xs text-slate-400">Avg. progress</div></div>
       </div>
+    </div>
+
+    <!-- live classes -->
+    <div class="mb-10">
+      <h2 class="text-lg font-bold text-slate-800 mb-4">Upcoming live classes</h2>
+      <LiveSessionList compact show-course />
     </div>
 
     <!-- continue learning -->
     <div v-if="inProgress.length" class="mb-10">
       <h2 class="text-lg font-bold text-slate-800 mb-4">Continue learning</h2>
-      <div class="grid md:grid-cols-2 gap-4">
-        <div v-for="e in inProgress" :key="e.id" class="card p-4 flex gap-4 items-center hover:border-brand-300 transition">
-          <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-brand-500 to-slate-700 flex items-center justify-center shrink-0">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div v-for="e in inProgress" :key="e.id" class="card p-3 sm:p-4 flex flex-wrap sm:flex-nowrap gap-3 sm:gap-4 items-center hover:border-brand-300 transition min-w-0">
+          <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-brand-500 to-slate-700 flex items-center justify-center shrink-0">
             <PlayCircle class="w-7 h-7 text-white/80" />
           </div>
           <div class="flex-1 min-w-0">
@@ -75,7 +81,7 @@ onMounted(async () => {
               <b class="text-brand-700">{{ Math.round(e.progress) }}%</b>
             </div>
           </div>
-          <NuxtLink :to="`/learn/${e.course.slug}`" class="btn-primary shrink-0">Resume</NuxtLink>
+          <NuxtLink :to="`/learn/${e.course.slug}`" class="btn-primary shrink-0 w-full sm:w-auto">Resume</NuxtLink>
         </div>
       </div>
     </div>
@@ -83,9 +89,9 @@ onMounted(async () => {
     <!-- completed -->
     <div v-if="completed.length" class="mb-10">
       <h2 class="text-lg font-bold text-slate-800 mb-4">Completed 🎓</h2>
-      <div class="grid md:grid-cols-2 gap-4">
-        <div v-for="e in completed" :key="e.id" class="card p-4 flex gap-4 items-center border-brand-200">
-          <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shrink-0">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div v-for="e in completed" :key="e.id" class="card p-3 sm:p-4 flex gap-3 sm:gap-4 items-center border-brand-200 min-w-0">
+          <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shrink-0">
             <Trophy class="w-7 h-7 text-white" />
           </div>
           <div class="flex-1 min-w-0">

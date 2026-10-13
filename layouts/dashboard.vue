@@ -2,7 +2,7 @@
 import {
   LayoutDashboard, BookOpen, GraduationCap, Bell, Settings, Shield,
   Menu, X, LogOut, FolderTree, Users, ClipboardList, Megaphone,
-  BarChart3, Home
+  BarChart3, Home, CalendarDays, NotebookPen, Receipt, Inbox, Video
 } from 'lucide-vue-next'
 
 const auth = useAuth()
@@ -21,6 +21,8 @@ const navMain = computed(() => {
       { label: 'Overview', to: '/admin', icon: Shield },
       { label: 'Users', to: '/admin/users', icon: Users },
       { label: 'Categories', to: '/admin/categories', icon: FolderTree },
+      { label: 'Payments', to: '/admin/payments', icon: Receipt },
+      { label: 'Enquiries', to: '/admin/enquiries', icon: Inbox },
       { label: 'Browse Courses', to: '/courses', icon: BookOpen },
     ]
   }
@@ -34,10 +36,13 @@ const navMain = computed(() => {
   return [
     { label: 'My Learning', to: '/dashboard', icon: LayoutDashboard },
     { label: 'Browse Courses', to: '/courses', icon: BookOpen },
+    { label: 'Payments', to: '/payments', icon: Receipt },
   ]
 })
 
 const navShared = [
+  { label: 'Calendar', to: '/calendar', icon: CalendarDays },
+  { label: 'Notes & Bookmarks', to: '/notes', icon: NotebookPen },
   { label: 'Certificates', to: '/certificates', icon: GraduationCap },
   { label: 'Notifications', to: '/notifications', icon: Bell },
   { label: 'Profile', to: '/profile', icon: Settings },
@@ -50,6 +55,7 @@ const teachTabs = computed(() => {
   return [
     { label: 'Course Settings', to: `/teach/courses/${id}/edit`, icon: Settings, exact: false },
     { label: 'Curriculum Builder', to: `/teach/courses/${id}/builder`, icon: FolderTree },
+    { label: 'Live Classes', to: `/teach/courses/${id}/live`, icon: Video },
     { label: 'Students', to: `/teach/courses/${id}/students`, icon: Users },
     { label: 'Gradebook', to: `/teach/courses/${id}/gradebook`, icon: ClipboardList },
     { label: 'Announcements', to: `/teach/courses/${id}/announcements`, icon: Megaphone },
@@ -73,8 +79,7 @@ const doLogout = () => {
           <component :is="sidebarOpen ? X : Menu" class="w-5 h-5 text-slate-600 dark:text-slate-300" />
         </button>
         <NuxtLink to="/" class="flex items-center gap-2 group">
-          <img src="/logo.svg" alt="LearnHub logo" class="w-8 h-8 rounded-lg transition-transform group-hover:scale-105" />
-          <span class="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white hidden sm:block">Learn<span class="text-brand-600 dark:text-brand-400">Hub</span></span>
+          <BrandLogo size="sm" />
         </NuxtLink>
       </div>
       <div class="flex items-center gap-2">

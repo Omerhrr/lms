@@ -10,7 +10,8 @@ from app.modules.auth.models import User
 router = APIRouter(prefix="/media", tags=["media"])
 
 ALLOWED_EXTENSIONS = {
-    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico",
+    # no .svg / .html: they can carry script and would run on our origin
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico",
     ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".txt", ".csv",
     ".mp4", ".webm", ".mp3", ".wav", ".zip",
 }
@@ -22,14 +23,12 @@ async def upload_file(file: UploadFile = File(...), _: User = Depends(any_user))
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(400, f"File type '{ext or 'unknown'}' is not allowed")
 
-    contents = await file.read()
-    if len(contents) > settings.MAX_UPLOAD_MB * 1024 * 1024:
+    limit = settings.MAX_UPLOAD_MB * 1024 * 1024
+    contents = await file.read(limit + 1)   # never buffer more than the cap
+    if len(contents) > limit:
         raise HTTPException(400, f"File exceeds the {settings.MAX_UPLOAD_MB}MB limit")
 
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    from app.core.storage import save_upload
     filename = f"{uuid.uuid4().hex}{ext}"
-    with open(os.path.join(settings.UPLOAD_DIR, filename), "wb") as f:
-        f.write(contents)
-
-    url = f"/api/media/files/{filename}"
+    url = save_upload(filename, contents, ext)
     return {"url": url, "filename": file.filename, "size": len(contents)}

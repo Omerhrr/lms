@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Save, KeyRound } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Profile - LearnHub' })
+useSeoMeta({ title: 'Profile - Infohive' })
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
 const api = useApi()
@@ -29,7 +29,7 @@ const save = async () => {
 
 const changePw = async () => {
   if (pw.value.new_password !== pw.value.confirm) return show('Passwords do not match', 'error')
-  if (pw.value.new_password.length < 6) return show('New password must be 6+ characters', 'error')
+  if (pw.value.new_password.length < 8) return show('New password must be 8+ characters', 'error')
   savingPw.value = true
   try {
     await api.post('/auth/change-password', { current_password: pw.value.current_password, new_password: pw.value.new_password })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Save, Rocket, Undo2, Archive, Trash2, Upload } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Course settings - LearnHub' })
+useSeoMeta({ title: 'Course settings - Infohive' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const route = useRoute()
@@ -99,6 +99,36 @@ const removeCourse = async () => {
   } catch { /* the api client already showed the error */ } finally { acting.value = false }
 }
 
+// ---------- prerequisites ----------
+const catalog = ref<any[]>([])
+const prereqIds = ref<number[]>([])
+const prereqSearch = ref('')
+const savingPrereqs = ref(false)
+
+const loadCatalog = async () => {
+  try {
+    const res = await api.get<any>('/courses', { size: 48 }, true)
+    catalog.value = res.items.filter((c: any) => c.id !== courseId)
+  } catch { catalog.value = [] }
+}
+watch(course, (c) => { if (c) prereqIds.value = [...(c.prerequisite_ids || [])] })
+onMounted(loadCatalog)
+
+const prereqOptions = computed(() => {
+  const q = prereqSearch.value.trim().toLowerCase()
+  return catalog.value.filter(c => !q || c.title.toLowerCase().includes(q))
+})
+const togglePrereq = (id: number) => {
+  prereqIds.value = prereqIds.value.includes(id) ? prereqIds.value.filter(x => x !== id) : [...prereqIds.value, id]
+}
+const savePrereqs = async () => {
+  savingPrereqs.value = true
+  try {
+    await api.put(`/teach/courses/${courseId}/prerequisites`, { course_ids: prereqIds.value })
+    show('Prerequisites saved')
+  } catch { /* toast shown */ } finally { savingPrereqs.value = false }
+}
+
 const statusStyle = computed(() => ({
   draft: 'bg-slate-100 text-slate-600',
   published: 'bg-emerald-50 text-emerald-700',
@@ -129,8 +159,9 @@ const statusStyle = computed(() => ({
         </div>
         <div>
           <label class="label">Description</label>
-          <textarea v-model="form.description" class="input min-h-[130px]"
-            placeholder="Full course description. HTML is supported (e.g. <p>, <ul>, <b>)." />
+          <ClientOnly>
+            <RichEditor v-model="form.description" placeholder="What will students learn? Who is it for?" />
+          </ClientOnly>
         </div>
         <div class="grid sm:grid-cols-3 gap-3">
           <div>
@@ -149,7 +180,7 @@ const statusStyle = computed(() => ({
             </select>
           </div>
           <div>
-            <label class="label">Price (USD, 0 = free)</label>
+            <label class="label">Price ({{ usePlatform().config.value.currency }}, 0 = free)</label>
             <input v-model.number="form.price" type="number" min="0" step="0.01" class="input" />
           </div>
         </div>
@@ -179,6 +210,29 @@ const statusStyle = computed(() => ({
         <button class="btn-primary" :disabled="saving" @click="save">
           <Save class="w-4 h-4" /> {{ saving ? 'Saving…' : 'Save changes' }}
         </button>
+      </div>
+
+      <!-- prerequisites -->
+      <div class="card p-6 mt-6">
+        <h2 class="font-bold text-slate-800 mb-1">Prerequisites</h2>
+        <p class="text-sm text-slate-500 mb-4">Students must complete these courses before they can enroll in this one.</p>
+        <input v-model="prereqSearch" class="input mb-3" placeholder="Search published courses…" />
+        <div class="max-h-64 overflow-y-auto nice-scroll border border-slate-200 rounded-xl divide-y divide-slate-100">
+          <label v-for="c in prereqOptions" :key="c.id" class="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" class="rounded accent-brand-600" :checked="prereqIds.includes(c.id)" @change="togglePrereq(c.id)" />
+            <span class="flex-1 min-w-0">
+              <span class="block text-sm font-medium text-slate-700 truncate">{{ c.title }}</span>
+              <span class="block text-xs text-slate-400 truncate">{{ c.instructor?.full_name }} · {{ c.level }}</span>
+            </span>
+          </label>
+          <p v-if="!prereqOptions.length" class="px-3 py-4 text-sm text-slate-400">No published courses match.</p>
+        </div>
+        <div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
+          <span class="text-xs text-slate-500">{{ prereqIds.length }} selected</span>
+          <button class="btn-primary" :disabled="savingPrereqs" @click="savePrereqs">
+            <Save class="w-4 h-4" /> {{ savingPrereqs ? 'Saving…' : 'Save prerequisites' }}
+          </button>
+        </div>
       </div>
 
       <!-- status -->

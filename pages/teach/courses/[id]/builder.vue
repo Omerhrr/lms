@@ -4,7 +4,7 @@ import {
   BarChart3, Save, Pencil, HelpCircle, ListPlus, GraduationCap
 } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Curriculum builder - LearnHub' })
+useSeoMeta({ title: 'Curriculum builder - Infohive' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const route = useRoute()
@@ -64,13 +64,17 @@ const deleteSection = async (id: number) => {
 const openLesson = (sectionId: number, editing?: any) => {
   lessonModal.value = { open: true, sectionId, editing }
   lessonForm.value = editing
-    ? { title: editing.title, type: editing.type, duration_minutes: editing.duration_minutes, is_preview: editing.is_preview, video_url: editing.video_url || '', file_url: editing.file_url || '', content: editing.content || '' }
-    : { title: '', type: 'video', duration_minutes: 10, is_preview: false, video_url: '', file_url: '', content: '' }
+    ? { title: editing.title, type: editing.type, duration_minutes: editing.duration_minutes, is_preview: editing.is_preview, video_url: editing.video_url || '', file_url: editing.file_url || '', content: editing.content || '', drip_days: editing.drip_days || 0 }
+    : { title: '', type: 'video', duration_minutes: 10, is_preview: false, video_url: '', file_url: '', content: '', drip_days: 0 }
 }
 
+const videoSource = computed(() => parseVideoUrl(lessonForm.value.video_url))
+
 const saveLesson = async () => {
-  const f = lessonForm.value
+  const f = { ...lessonForm.value, drip_days: Number(lessonForm.value.drip_days) || 0 }
   if (!f.title.trim()) return show('Lesson title is required', 'error')
+  if (f.type === 'video' && f.video_url && !videoSource.value)
+    return show('Use a YouTube, Vimeo or direct .mp4 video link', 'error')
   try {
     if (lessonModal.value.editing) {
       await api.put(`/teach/lessons/${lessonModal.value.editing.id}`, f)
@@ -213,7 +217,7 @@ const letter = (i: number) => String.fromCharCode(65 + i)
               <div class="text-sm font-medium text-slate-700 truncate">{{ l.title }}
                 <span v-if="l.is_preview" class="badge bg-brand-50 text-brand-700 ml-1.5">Preview</span>
               </div>
-              <div class="text-xs text-slate-400 capitalize">{{ l.type }} · {{ l.duration_minutes }} min</div>
+              <div class="text-xs text-slate-400"><span class="capitalize">{{ l.type }}</span> · {{ l.duration_minutes }} min<span v-if="l.drip_days" class="text-amber-600"> · unlocks day {{ l.drip_days }}</span></div>
             </div>
             <button v-if="l.type === 'quiz'" @click="openQuiz(l)"
               class="btn-ghost text-xs !px-2.5 text-violet-700 hover:bg-violet-50 shrink-0">
@@ -260,7 +264,7 @@ const letter = (i: number) => String.fromCharCode(65 + i)
     </Modal>
 
     <!-- lesson modal -->
-    <Modal :open="lessonModal.open" :title="lessonModal.editing ? 'Edit lesson' : 'Add lesson'" @close="lessonModal = { open: false }">
+    <Modal :open="lessonModal.open" :title="lessonModal.editing ? 'Edit lesson' : 'Add lesson'" :wide="lessonForm.type === 'text'" @close="lessonModal = { open: false }">
       <div class="space-y-4">
         <div>
           <label class="label">Title</label>
@@ -282,9 +286,14 @@ const letter = (i: number) => String.fromCharCode(65 + i)
           </div>
         </div>
         <div v-if="lessonForm.type === 'video'">
-          <label class="label">Video embed URL</label>
-          <input v-model="lessonForm.video_url" class="input" placeholder="https://www.youtube.com/embed/VIDEO_ID" />
-          <p class="text-xs text-slate-400 mt-1">Use the embed form (youtube.com/embed/…) for in-player playback.</p>
+          <label class="label">Video link</label>
+          <input v-model="lessonForm.video_url" class="input" placeholder="https://www.youtube.com/watch?v=… or https://vimeo.com/… or .mp4" />
+          <p v-if="lessonForm.video_url && videoSource" class="text-xs text-brand-700 mt-1">
+            ✓ {{ videoKindLabel(videoSource) }} video detected. Students watch it inside Infohive only - no download or YouTube/Vimeo links.
+          </p>
+          <p v-else-if="lessonForm.video_url" class="text-xs text-rose-600 mt-1">Unrecognised link. Paste a YouTube, Vimeo or direct .mp4/.webm link.</p>
+          <p v-else class="text-xs text-slate-400 mt-1">Paste any normal YouTube or Vimeo link, or a direct video file link.</p>
+          <div v-if="videoSource" class="mt-3"><VideoPlayer :url="lessonForm.video_url" /></div>
         </div>
         <div v-if="lessonForm.type === 'file'">
           <label class="label">File URL (upload via Media, or paste link)</label>
@@ -292,8 +301,18 @@ const letter = (i: number) => String.fromCharCode(65 + i)
         </div>
         <div v-if="lessonForm.type === 'text'">
           <label class="label">Content</label>
-          <textarea v-model="lessonForm.content" class="input min-h-[130px] font-mono text-xs"
-            placeholder="## Heading&#10;- bullet point&#10;&#10;Paragraph text…" />
+          <ClientOnly>
+            <RichEditor v-model="lessonForm.content" placeholder="Write the lesson: headings, lists, links, images, code…" />
+          </ClientOnly>
+        </div>
+        <div>
+          <label class="label">Release (drip)</label>
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-slate-600">Unlock</span>
+            <input v-model.number="lessonForm.drip_days" type="number" min="0" max="3650" class="input !w-24" />
+            <span class="text-sm text-slate-600">days after a student enrolls</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">0 = available immediately.</p>
         </div>
         <label class="flex items-center gap-2 text-sm text-slate-600">
           <input v-model="lessonForm.is_preview" type="checkbox" class="rounded accent-brand-600" />

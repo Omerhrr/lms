@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Megaphone, Trash2, Send } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Announcements - LearnHub' })
+useSeoMeta({ title: 'Announcements - Infohive' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const route = useRoute()

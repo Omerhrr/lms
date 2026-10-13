@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { LogIn, ShieldCheck } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Sign in - LearnHub' })
+useSeoMeta({ title: 'Sign in - Infohive' })
 definePageMeta({ middleware: 'guest' })
 
 const auth = useAuth()
@@ -14,8 +14,8 @@ const password = ref('')
 const loading = ref(false)
 
 const demoAccounts = [
-  { label: 'Admin', email: 'admin@learnhub.io', password: 'Admin123!' },
-  { label: 'Instructor', email: 'sarah@learnhub.io', password: 'Teach123!' },
+  { label: 'Admin', email: 'admin@infohive.demo', password: 'Admin123!' },
+  { label: 'Instructor', email: 'sarah@infohive.demo', password: 'Teach123!' },
   { label: 'Student', email: 'emma@example.com', password: 'Study123!' },
 ]
 

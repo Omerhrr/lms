@@ -33,17 +33,22 @@ def instructor_overview(db: Session = Depends(get_db), user: User = Depends(staf
         .group_by(Enrollment.course_id).all()
     ) if course_ids else {}
 
-    revenue = 0.0
+    from app.modules.payments.models import Payment
+    paid_by_course = dict(
+        db.query(Payment.course_id, func.sum(Payment.amount))
+        .filter(Payment.course_id.in_(course_ids), Payment.status == "success")
+        .group_by(Payment.course_id).all()
+    ) if course_ids else {}
+    revenue = sum(paid_by_course.values()) / 100
     per_course = []
     for c in courses:
         enrolled = enroll_counts.get(c.id, 0)
-        revenue += enrolled * (c.price or 0)
         per_course.append({
             "id": c.id, "title": c.title, "slug": c.slug, "status": c.status.value,
             "enrollments": enrolled,
             "completions": completed_counts.get(c.id, 0),
             "completion_rate": round(completed_counts.get(c.id, 0) / enrolled * 100, 1) if enrolled else 0,
-            "revenue": round(enrolled * (c.price or 0), 2),
+            "revenue": round(paid_by_course.get(c.id, 0) / 100, 2),
         })
 
     # last-30-day enrollment trend across own courses
@@ -79,14 +84,18 @@ def course_analytics(course_id: int, db: Session = Depends(get_db), user: User =
     completed = db.query(Enrollment).filter(Enrollment.course_id == course_id, Enrollment.status == "completed").count()
 
     # lesson completion funnel
-    lessons = sorted(db.query(Lesson).filter(Lesson.course_id == course_id).all(), key=lambda l: l.position)
+    # order by section, then lesson position (position alone repeats across sections)
+    from app.modules.courses.models import Section
+    lessons = (db.query(Lesson).join(Section, Section.id == Lesson.section_id)
+               .filter(Lesson.course_id == course_id).order_by(Section.position, Lesson.position).all())
+    done_by_lesson = dict(
+        db.query(LessonProgress.lesson_id, func.count(LessonProgress.id))
+        .join(Enrollment, Enrollment.id == LessonProgress.enrollment_id)
+        .filter(Enrollment.course_id == course_id).group_by(LessonProgress.lesson_id).all()
+    )
     lesson_stats = []
     for l in lessons:
-        done = (
-            db.query(func.count(LessonProgress.id))
-            .join(Enrollment, Enrollment.id == LessonProgress.enrollment_id)
-            .filter(LessonProgress.lesson_id == l.id, Enrollment.course_id == course_id).scalar() or 0
-        )
+        done = done_by_lesson.get(l.id, 0)
         lesson_stats.append({
             "lesson_id": l.id, "title": l.title, "type": l.type.value,
             "completed_by": done,
@@ -118,7 +127,9 @@ def course_analytics(course_id: int, db: Session = Depends(get_db), user: User =
         for aid, title, cnt in assignment_rows
     ]
 
-    revenue = round(enrolled * (course.price or 0), 2)
+    from app.modules.payments.models import Payment
+    revenue = round((db.query(func.coalesce(func.sum(Payment.amount), 0))
+                     .filter(Payment.course_id == course_id, Payment.status == "success").scalar() or 0) / 100, 2)
 
     # enrollment trend for this course (30 days)
     since = utcnow() - timedelta(days=30)

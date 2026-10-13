@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -39,3 +40,20 @@ def verify_certificate(serial: str, db: Session = Depends(get_db)):
     if not cert:
         raise HTTPException(404, "Certificate not found - please check the serial number")
     return _cert_dict(cert)
+
+
+@router.get("/certificates/{serial}/pdf")
+def certificate_pdf(serial: str, request: Request, db: Session = Depends(get_db)):
+    """Downloadable PDF. Public like the verification page: the serial is the credential."""
+    from app.modules.certificates.pdf import render_certificate_pdf
+    cert = db.query(Certificate).filter(Certificate.serial == serial.upper()).first()
+    if not cert:
+        raise HTTPException(404, "Certificate not found - please check the serial number")
+    origin = request.headers.get("x-forwarded-host") or request.headers.get("host") or "infohive"
+    pdf = render_certificate_pdf(
+        user_name=cert.user_name, course_title=cert.course_title, instructor_name=cert.instructor_name,
+        issued_at=cert.issued_at, serial=cert.serial, verify_url=f"{origin}/certificates/{cert.serial}",
+    )
+    filename = f"Infohive-certificate-{cert.serial}.pdf"
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})

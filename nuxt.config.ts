@@ -1,6 +1,9 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false },
+  // The app manifest (used for ISR/route-rule prefetching) isn't needed here, and in dev on WSL it
+  // can race with file generation and throw 'Failed to resolve import "#app-manifest"'.
+  experimental: { appManifest: false },
   modules: ['@nuxtjs/tailwindcss'],
   css: ['~/assets/css/main.css'],
   devServer: { host: '0.0.0.0', port: 3000 },
@@ -10,18 +13,33 @@ export default defineNuxtConfig({
       allowedHosts: true
     }
   },
-  // Proxy all /api/* calls to the FastAPI modular-monolith backend (port 8000)
+  // /api/** is forwarded to the FastAPI backend by server/api/[...path].ts (same-origin, so the
+  // API's HttpOnly session cookies are first-party). Override at runtime with env vars:
+  //   NUXT_API_ORIGIN   e.g. https://learnhub-api.vercel.app
+  //   NUXT_PROXY_SECRET same value as the API's PROXY_SHARED_SECRET
+  runtimeConfig: {
+    apiOrigin: 'http://127.0.0.1:8000',
+    proxySecret: '',
+  },
   routeRules: {
-    '/api/**': { proxy: 'http://127.0.0.1:8000/api/**' }
+    '/**': {
+      headers: {
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        // camera/mic are delegated only to iframes that ask for them (the live-class video room)
+        'Permissions-Policy': 'camera=*, microphone=*, display-capture=*, geolocation=()'
+      }
+    }
   },
   app: {
     head: {
-      title: 'LearnHub - Learning Management System',
+      title: 'Infohive Technology Ltd. - Technology. Learning. Innovation. Growth.',
       htmlAttrs: { lang: 'en' },
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'LearnHub - a full-featured learning management platform for instructors, students and administrators.' },
+        { name: 'description', content: 'Infohive Technology Ltd. provides technology solutions and digital learning - web and software development, IT consulting, digital transformation, corporate training and online courses.' },
         { name: 'theme-color', content: '#059669' }
       ],
       link: [

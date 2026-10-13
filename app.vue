@@ -6,7 +6,7 @@ onMounted(async () => {
   theme.init()
   // Restore the signed-in user on hard reloads of pages without route
   // middleware, so the header reflects the real session everywhere.
-  if (auth.token.value && !auth.user.value) await auth.fetchMe()
+  if (!auth.user.value) await auth.fetchMe()
 })
 </script>
 

@@ -43,15 +43,14 @@ const menuItems = computed(() => {
   return items
 })
 
-// Instructors and admins manage courses from their studio, so "Teach" is only
-// shown to visitors and students (same rule as before the redesign).
-const publicLinks = computed(() => {
-  const u = auth.user.value
-  const links = [{ label: 'Courses', to: '/courses' }]
-  if (!u || u.role === 'student') links.push({ label: 'Teach', to: '/teach' })
-  links.push({ label: 'Verify', to: '/verify' })
-  return links
-})
+// Public website sections (from the Infohive site map), then the app links.
+const publicLinks = computed(() => [
+  { label: 'About', to: '/about' },
+  { label: 'Services', to: '/services' },
+  { label: 'Learn', to: '/lms' },
+  { label: 'Courses', to: '/courses' },
+  { label: 'Contact', to: '/contact' },
+])
 
 const doLogout = () => {
   auth.logout()
@@ -72,8 +71,8 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   <header class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/90 backdrop-blur border-b border-slate-200 dark:border-slate-800">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
       <NuxtLink to="/" class="flex items-center gap-2.5 shrink-0 group">
-        <img src="/logo.svg" alt="LearnHub logo" class="w-9 h-9 rounded-xl transition-transform group-hover:scale-105" />
-        <span class="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Learn<span class="text-brand-600 dark:text-brand-400">Hub</span></span>
+        <BrandLogo class="transition-transform group-hover:scale-[1.02]" />
+        <span class="sr-only">Infohive Technology - home</span>
       </NuxtLink>
 
       <nav class="hidden md:flex items-center gap-1 text-sm font-medium">

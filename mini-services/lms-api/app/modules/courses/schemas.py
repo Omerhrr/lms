@@ -139,3 +139,39 @@ class CourseDetailOut(CourseCardOut):
     sections: list[SectionOut] = []
     is_enrolled: bool = False
     has_reviewed: bool = False
+
+
+# ---------- builder inputs (explicit fields: nothing else can be written) ----------
+
+class SectionIn(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=255)
+
+
+class MoveIn(BaseModel):
+    direction: Literal["up", "down"] = "up"
+
+
+class LessonCreateIn(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    type: Literal["video", "text", "file", "quiz"] = "video"
+    content: Optional[str] = None
+    video_url: Optional[str] = None
+    file_url: Optional[str] = None
+    duration_minutes: int = Field(default=5, ge=0, le=100_000)
+    is_preview: bool = False
+    drip_days: Optional[int] = Field(default=None, ge=0, le=3650)
+
+
+class LessonUpdateIn(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    type: Optional[Literal["video", "text", "file", "quiz"]] = None
+    content: Optional[str] = None
+    video_url: Optional[str] = None
+    file_url: Optional[str] = None
+    duration_minutes: Optional[int] = Field(default=None, ge=0, le=100_000)
+    is_preview: Optional[bool] = None
+    drip_days: Optional[int] = Field(default=None, ge=0, le=3650)
+
+
+class PrerequisitesIn(BaseModel):
+    course_ids: list[int] = Field(default_factory=list, max_length=20)

@@ -1,7 +1,9 @@
 <script setup lang="ts">
+const { config: _platform } = usePlatform()
+const revenue = (n?: number | null) => new Intl.NumberFormat(undefined, { style: 'currency', currencyDisplay: 'narrowSymbol', currency: _platform.value.currency, maximumFractionDigits: 0 }).format(n || 0)
 import { Users, Trophy, DollarSign, TrendingUp, BarChart3, ClipboardList } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Course analytics - LearnHub' })
+useSeoMeta({ title: 'Course analytics - Infohive' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const route = useRoute()
@@ -50,7 +52,7 @@ const fmtDate = (s: string) => {
         </div>
         <div class="card p-5 flex items-center gap-4">
           <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center"><DollarSign class="w-5.5 h-5.5 text-amber-600" /></div>
-          <div><div class="text-2xl font-extrabold">${{ data.revenue?.toLocaleString() }}</div><div class="text-xs text-slate-400">Revenue</div></div>
+          <div><div class="text-2xl font-extrabold">{{ revenue(data.revenue) }}</div><div class="text-xs text-slate-400">Revenue</div></div>
         </div>
         <div class="card p-5 flex items-center gap-4">
           <div class="w-11 h-11 rounded-xl bg-violet-50 flex items-center justify-center"><BarChart3 class="w-5.5 h-5.5 text-violet-600" /></div>

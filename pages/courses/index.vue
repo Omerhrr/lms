@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Search, SlidersHorizontal, X } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Browse courses - LearnHub' })
+useSeoMeta({ title: 'Browse courses - Infohive' })
 
 const route = useRoute()
 const router = useRouter()

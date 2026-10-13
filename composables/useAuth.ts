@@ -7,50 +7,53 @@ export interface AuthUser {
   headline: string | null
   bio: string | null
   is_active: boolean
+  instructor_requested?: boolean
 }
 
 // Shared in-flight /auth/me promise (module scope = shared across all useAuth() callers)
 let pendingMe: Promise<void> | null = null
 
+/**
+ * Session state. The tokens themselves are HttpOnly cookies owned by the API - nothing here
+ * can read them. `lh_session` is a non-secret hint cookie meaning "a session may exist".
+ */
 export const useAuth = () => {
   const user = useState<AuthUser | null>('auth:user', () => null)
-  const { state: token, setTokens } = useAuthToken()
+  const hint = useCookie<string | null>('lh_session', { readonly: true })
   const api = useApi()
 
   const isLoggedIn = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
   const isInstructor = computed(() => user.value?.role === 'instructor' || user.value?.role === 'admin')
   const isStudent = computed(() => user.value?.role === 'student')
-
-  const setSession = (data: { access_token: string; refresh_token: string; user: AuthUser }) => {
-    setTokens(data.access_token, data.refresh_token)
-    user.value = data.user
-  }
+  const hasSession = computed(() => !!hint.value || !!user.value)
 
   const login = async (email: string, password: string) => {
-    const res = await api.post<{ access_token: string; refresh_token: string; user: AuthUser }>('/auth/login', { email, password }, true)
-    setSession(res)
+    const res = await api.post<{ user: AuthUser }>('/auth/login', { email, password }, true)
+    user.value = res.user
     return res.user
   }
 
   const register = async (payload: { email: string; password: string; full_name: string; role: string }) => {
-    const res = await api.post<{ access_token: string; refresh_token: string; user: AuthUser }>('/auth/register', payload, true)
-    setSession(res)
+    const res = await api.post<{ user: AuthUser }>('/auth/register', payload, true)
+    user.value = res.user
     return res.user
   }
 
-  // Deduplicate concurrent /auth/me calls (app bootstrap + route middleware
-  // can both trigger on the first load of a guarded page). Module-scoped so
-  // every useAuth() instance shares the same in-flight promise.
   const fetchMe = async () => {
-    if (!token.value) return
+    if (user.value) return
+    if (!hint.value && import.meta.client && !document.cookie.includes('lh_session=')) return
     if (pendingMe) return pendingMe
     pendingMe = (async () => {
       try {
         user.value = await api.get<AuthUser>('/auth/me', undefined, true)
       } catch {
-        setTokens(null, null)
-        user.value = null
+        // access cookie expired: rotate once with the refresh cookie, then retry
+        if (import.meta.client && (await api.tryRefresh())) {
+          try { user.value = await api.get<AuthUser>('/auth/me', undefined, true) } catch { user.value = null }
+        } else {
+          user.value = null
+        }
       } finally {
         pendingMe = null
       }
@@ -58,9 +61,9 @@ export const useAuth = () => {
     return pendingMe
   }
 
-  const logout = () => {
-    setTokens(null, null)
+  const logout = async () => {
     user.value = null
+    try { await api.post('/auth/logout', undefined, true) } catch { /* cookies may already be gone */ }
   }
 
   const homeFor = (u: AuthUser | null) => {
@@ -70,5 +73,5 @@ export const useAuth = () => {
     return '/dashboard'
   }
 
-  return { user, token, isLoggedIn, isAdmin, isInstructor, isStudent, login, register, fetchMe, logout, homeFor }
+  return { user, isLoggedIn, hasSession, isAdmin, isInstructor, isStudent, login, register, fetchMe, logout, homeFor }
 }

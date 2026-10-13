@@ -3,11 +3,11 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.modules.auth.models import User, UserRole
-from app.modules.courses.models import Category, Course, CourseStatus, Section, Lesson, Review, LessonType
+from app.modules.courses.models import Category, Course, CourseStatus, Section, Lesson, Review, LessonType, CoursePrerequisite
 from app.modules.courses.schemas import (
-    CourseCreateIn, CourseUpdateIn, CategoryIn,
+    CourseCreateIn, CourseUpdateIn, CategoryIn, LessonCreateIn, LessonUpdateIn,
 )
-from app.shared.utils import unique_slug, utcnow
+from app.shared.utils import unique_slug, utcnow, safe_url, sanitize_html, sanitize_rich_content
 
 
 class CoursesService:
@@ -70,18 +70,19 @@ class CoursesService:
 
     @staticmethod
     def create_course(db: Session, data: CourseCreateIn, instructor: User) -> Course:
+        CoursesService._check_category(db, data.category_id)
         course = Course(
             title=data.title.strip(),
             slug=unique_slug(db, Course, data.title),
             summary=data.summary,
-            description=data.description,
+            description=sanitize_html(data.description) or "",
             category_id=data.category_id,
             instructor_id=instructor.id,
             price=data.price,
             level=data.level,
             language=data.language,
-            thumbnail_url=data.thumbnail_url,
-            tags=data.tags,
+            thumbnail_url=safe_url(data.thumbnail_url, "thumbnail_url"),
+            tags=[str(t)[:50] for t in data.tags][:20],
         )
         db.add(course)
         db.commit()
@@ -89,8 +90,24 @@ class CoursesService:
         return course
 
     @staticmethod
-    def update_course(db: Session, course: Course, data: CourseUpdateIn) -> Course:
+    def _check_category(db: Session, category_id) -> None:
+        if category_id is not None and not db.get(Category, category_id):
+            raise HTTPException(400, "Category not found")
+
+    @staticmethod
+    def update_course(db: Session, course: Course, data: CourseUpdateIn, user: User) -> Course:
         payload = data.model_dump(exclude_unset=True)
+        if "is_featured" in payload and user.role != UserRole.admin:
+            # featuring on the homepage is an editorial decision, not the instructor's
+            raise HTTPException(403, "Only admins can feature courses")
+        if "category_id" in payload:
+            CoursesService._check_category(db, payload["category_id"])
+        if "description" in payload:
+            payload["description"] = sanitize_html(payload["description"]) or ""
+        if "thumbnail_url" in payload:
+            payload["thumbnail_url"] = safe_url(payload["thumbnail_url"], "thumbnail_url")
+        if payload.get("tags") is not None:
+            payload["tags"] = [str(t)[:50] for t in payload["tags"]][:20]
         if "title" in payload and payload["title"]:
             course.title = payload["title"].strip()
             course.slug = unique_slug(db, Course, course.title, exclude_id=course.id)
@@ -119,7 +136,7 @@ class CoursesService:
         from app.modules.certificates.models import Certificate
 
         lesson_ids = [l.id for l in db.query(Lesson.id).filter(Lesson.course_id == course.id)]
-        quiz_ids = [q.id for l in lesson_ids for q in db.query(Quiz.id).filter(Quiz.lesson_id == l)]
+        quiz_ids = [q.id for q in db.query(Quiz.id).filter(Quiz.lesson_id.in_(lesson_ids))] if lesson_ids else []
         assignment_ids = [a.id for a in db.query(Assignment.id).filter(Assignment.course_id == course.id)]
         thread_ids = [t.id for t in db.query(Thread.id).filter(Thread.course_id == course.id)]
         enrollment_ids = [e.id for e in db.query(Enrollment.id).filter(Enrollment.course_id == course.id)]
@@ -132,10 +149,20 @@ class CoursesService:
             db.query(Submission).filter(Submission.assignment_id.in_(assignment_ids)).delete(synchronize_session=False)
             db.query(Assignment).filter(Assignment.id.in_(assignment_ids)).delete(synchronize_session=False)
         if thread_ids:
+            # replies point at each other via parent_id; clear that first so FK order doesn't matter
+            db.query(Post).filter(Post.thread_id.in_(thread_ids)).update({"parent_id": None}, synchronize_session=False)
             db.query(Post).filter(Post.thread_id.in_(thread_ids)).delete(synchronize_session=False)
             db.query(Thread).filter(Thread.id.in_(thread_ids)).delete(synchronize_session=False)
         db.query(Announcement).filter(Announcement.course_id == course.id).delete(synchronize_session=False)
         db.query(Certificate).filter(Certificate.course_id == course.id).delete(synchronize_session=False)
+        db.query(Review).filter(Review.course_id == course.id).delete(synchronize_session=False)
+        from app.modules.payments.models import Payment
+        db.query(Payment).filter(Payment.course_id == course.id).update({"course_id": None}, synchronize_session=False)
+        db.query(CoursePrerequisite).filter(
+            (CoursePrerequisite.course_id == course.id) | (CoursePrerequisite.prerequisite_id == course.id)
+        ).delete(synchronize_session=False)
+        if lesson_ids:
+            db.query(LessonProgress).filter(LessonProgress.lesson_id.in_(lesson_ids)).delete(synchronize_session=False)
         if enrollment_ids:
             db.query(LessonProgress).filter(LessonProgress.enrollment_id.in_(enrollment_ids)).delete(synchronize_session=False)
             db.query(Enrollment).filter(Enrollment.id.in_(enrollment_ids)).delete(synchronize_session=False)
@@ -183,7 +210,7 @@ class CoursesService:
             "title": course.title,
             "slug": course.slug,
             "summary": course.summary,
-            "description": course.description if detail else "",
+            "description": (sanitize_html(course.description) or "") if detail else "",
             "thumbnail_url": course.thumbnail_url,
             "price": course.price,
             "level": course.level.value if hasattr(course.level, "value") else str(course.level),
@@ -196,12 +223,12 @@ class CoursesService:
             "enrollment_count": maps["enrollments"].get(cid, 0),
             "lesson_count": maps["lesson_counts"].get(cid, 0),
             "total_minutes": maps["minutes"].get(cid, 0),
-            "instructor": {
-                "id": course.instructor.id,
-                "full_name": course.instructor.full_name,
-                "headline": course.instructor.headline,
-                "avatar_url": course.instructor.avatar_url,
-            },
+            "instructor": (
+                {"id": course.instructor.id, "full_name": course.instructor.full_name,
+                 "headline": course.instructor.headline, "avatar_url": course.instructor.avatar_url}
+                if course.instructor else
+                {"id": None, "full_name": "Former instructor", "headline": None, "avatar_url": None}
+            ),
             "category": (
                 {"id": course.category.id, "name": course.category.name,
                  "slug": course.category.slug, "description": course.category.description}
@@ -215,7 +242,8 @@ class CoursesService:
                     "id": s.id, "title": s.title, "position": s.position,
                     "lessons": [
                         {"id": l.id, "title": l.title, "type": l.type.value if hasattr(l.type, "value") else str(l.type),
-                         "duration_minutes": l.duration_minutes, "position": l.position, "is_preview": l.is_preview}
+                         "duration_minutes": l.duration_minutes, "position": l.position, "is_preview": l.is_preview,
+                         "drip_days": l.drip_days}
                         for l in sorted(s.lessons, key=lambda x: x.position)
                     ],
                 })
@@ -231,32 +259,44 @@ class CoursesService:
             Course.status == CourseStatus.published
         )
         if search:
+            search = search[:100].replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             like = f"%{search}%"
-            q = q.filter(or_(Course.title.ilike(like), Course.summary.ilike(like)))
+            q = q.filter(or_(Course.title.ilike(like, escape="\\"), Course.summary.ilike(like, escape="\\")))
         if category_id:
             q = q.filter(Course.category_id == category_id)
         if level:
+            if level not in ("beginner", "intermediate", "advanced"):
+                raise HTTPException(400, "Invalid level")
             q = q.filter(Course.level == level)
         if price == "free":
             q = q.filter(Course.price == 0)
         elif price == "paid":
             q = q.filter(Course.price > 0)
 
-        order = {
-            "newest": Course.created_at.desc(),
-            "price_low": Course.price.asc(),
-            "price_high": Course.price.desc(),
-            "title": Course.title.asc(),
-        }
-        q = q.order_by(order.get(sort, Course.created_at.desc()))
-        items = q.limit(size).offset((max(1, page) - 1) * size).all()
         total = q.count()
+        from app.modules.enrollments.models import Enrollment
+        if sort in ("popular", "rating"):
+            # sort across the whole catalog (not just the current page)
+            enr = (db.query(Enrollment.course_id.label("cid"), func.count(Enrollment.id).label("n"))
+                   .group_by(Enrollment.course_id).subquery())
+            rat = (db.query(Review.course_id.label("cid"), func.avg(Review.rating).label("r"))
+                   .group_by(Review.course_id).subquery())
+            q = q.outerjoin(enr, enr.c.cid == Course.id).outerjoin(rat, rat.c.cid == Course.id)
+            n, r = func.coalesce(enr.c.n, 0), func.coalesce(rat.c.r, 0)
+            q = q.order_by(*( (n.desc(), r.desc()) if sort == "popular" else (r.desc(), n.desc()) ),
+                           Course.id.desc())
+        else:
+            order = {
+                "newest": Course.created_at.desc(),
+                "price_low": Course.price.asc(),
+                "price_high": Course.price.desc(),
+                "title": Course.title.asc(),
+            }
+            q = q.order_by(order.get(sort, Course.created_at.desc()), Course.id.desc())
+        page = max(1, page)
+        items = q.limit(size).offset((page - 1) * size).all()
         maps = CoursesService.aggregate_maps(db, [c.id for c in items])
         cards = [CoursesService.course_to_dict(db, c, maps) for c in items]
-
-        if sort in ("popular", "rating"):
-            key = (lambda c: (c["enrollment_count"], c["rating"])) if sort == "popular" else (lambda c: c["rating"])
-            cards = sorted(cards, key=key, reverse=True)
 
         return {"items": cards, "total": total, "page": page, "pages": max(1, -(-total // size))}
 
@@ -303,10 +343,35 @@ class CoursesService:
                  "type": l.type.value if hasattr(l.type, "value") else str(l.type),
                  "duration_minutes": l.duration_minutes, "position": l.position,
                  "is_preview": l.is_preview, "video_url": l.video_url,
-                 "file_url": l.file_url, "content": l.content}
+                 "file_url": l.file_url, "content": sanitize_rich_content(l.content), "drip_days": l.drip_days}
                 for l in sorted(section.lessons, key=lambda x: x.position)
             ]
+        data["prerequisite_ids"] = [p.prerequisite_id for p in
+                                    db.query(CoursePrerequisite).filter_by(course_id=course.id)]
         return data
+
+    @staticmethod
+    def set_prerequisites(db: Session, course: Course, course_ids: list[int]) -> None:
+        ids = list(dict.fromkeys(int(i) for i in course_ids))
+        if course.id in ids:
+            raise HTTPException(400, "A course can't be its own prerequisite")
+        found = {c.id for c in db.query(Course.id).filter(Course.id.in_(ids))} if ids else set()
+        if len(found) != len(ids):
+            raise HTTPException(400, "One of the prerequisite courses doesn't exist")
+        # reject cycles: none of the chosen courses may (transitively) require this course
+        frontier, seen = list(ids), set()
+        while frontier:
+            cid = frontier.pop()
+            if cid == course.id:
+                raise HTTPException(400, "That would create a circular prerequisite chain")
+            if cid in seen:
+                continue
+            seen.add(cid)
+            frontier += [p.prerequisite_id for p in db.query(CoursePrerequisite).filter_by(course_id=cid)]
+        db.query(CoursePrerequisite).filter_by(course_id=course.id).delete(synchronize_session=False)
+        for pid in ids:
+            db.add(CoursePrerequisite(course_id=course.id, prerequisite_id=pid))
+        db.commit()
 
     # ---------- sections & lessons ----------
 
@@ -329,9 +394,12 @@ class CoursesService:
     def delete_section(db: Session, section: Section) -> None:
         from app.modules.assessments.models import Quiz, Question, QuizAttempt
 
+        from app.modules.enrollments.models import LessonProgress
+
         lesson_ids = [l.id for l in section.lessons]
         if lesson_ids:
-            quiz_ids = [q.id for l in lesson_ids for q in db.query(Quiz.id).filter(Quiz.lesson_id == l)]
+            db.query(LessonProgress).filter(LessonProgress.lesson_id.in_(lesson_ids)).delete(synchronize_session=False)
+            quiz_ids = [q.id for q in db.query(Quiz.id).filter(Quiz.lesson_id.in_(lesson_ids))]
             if quiz_ids:
                 db.query(QuizAttempt).filter(QuizAttempt.quiz_id.in_(quiz_ids)).delete(synchronize_session=False)
                 db.query(Question).filter(Question.quiz_id.in_(quiz_ids)).delete(synchronize_session=False)
@@ -340,7 +408,7 @@ class CoursesService:
         db.commit()
 
     @staticmethod
-    def move_section(db: Session, course: Course, section: Section, direction: str) -> None:
+    def move_section(db: Session, course: Course, section: Section, direction: str) -> None:  # noqa: D401
         siblings = sorted(db.query(Section).filter(Section.course_id == course.id).all(), key=lambda s: s.position)
         idx = siblings.index(section)
         swap = idx - 1 if direction == "up" else idx + 1
@@ -351,14 +419,14 @@ class CoursesService:
             db.commit()
 
     @staticmethod
-    def add_lesson(db: Session, section: Section, **fields) -> Lesson:
+    def add_lesson(db: Session, section: Section, data: LessonCreateIn) -> Lesson:
         pos = db.query(func.coalesce(func.max(Lesson.position), -1)).filter(Lesson.section_id == section.id).scalar() + 1
         lesson = Lesson(
-            section_id=section.id, course_id=section.course_id, title=fields["title"],
-            type=LessonType(fields.get("type", "video")),
-            content=fields.get("content"), video_url=fields.get("video_url"),
-            file_url=fields.get("file_url"), duration_minutes=fields.get("duration_minutes", 5),
-            is_preview=fields.get("is_preview", False), position=pos,
+            section_id=section.id, course_id=section.course_id, title=data.title.strip(),
+            type=LessonType(data.type),
+            content=sanitize_rich_content(data.content), video_url=safe_url(data.video_url, "video_url"),
+            file_url=safe_url(data.file_url, "file_url"), duration_minutes=data.duration_minutes,
+            is_preview=data.is_preview, drip_days=data.drip_days or None, position=pos,
         )
         db.add(lesson)
         db.commit()
@@ -366,10 +434,19 @@ class CoursesService:
         return lesson
 
     @staticmethod
-    def update_lesson(db: Session, lesson: Lesson, fields: dict) -> Lesson:
+    def update_lesson(db: Session, lesson: Lesson, data: LessonUpdateIn) -> Lesson:
+        fields = data.model_dump(exclude_unset=True)
+        for key in ("video_url", "file_url"):
+            if key in fields:
+                fields[key] = safe_url(fields[key], key)
+        if "content" in fields:
+            fields["content"] = sanitize_rich_content(fields["content"])
+        if "drip_days" in fields:
+            lesson.drip_days = fields.pop("drip_days") or None
         for key, value in fields.items():
-            if key == "type" and value is not None:
-                lesson.type = LessonType(value)
+            if key == "type":
+                if value is not None:
+                    lesson.type = LessonType(value)
             elif value is not None or key in ("content", "video_url", "file_url"):
                 setattr(lesson, key, value)
         db.commit()
@@ -414,7 +491,7 @@ class CoursesService:
              "created_at": r.created_at.isoformat(),
              "user": {"id": r.user.id, "full_name": r.user.full_name, "headline": r.user.headline,
                       "avatar_url": r.user.avatar_url}}
-            for r in reviews
+            for r in reviews if r.user
         ]
 
     @staticmethod

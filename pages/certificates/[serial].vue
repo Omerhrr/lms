@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Printer, ShieldCheck, BadgeCheck, XCircle } from 'lucide-vue-next'
+import { Printer, ShieldCheck, BadgeCheck, XCircle, Download } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Certificate - LearnHub' })
+useSeoMeta({ title: 'Certificate - Infohive' })
 
 const route = useRoute()
 const api = useApi()
@@ -35,8 +35,7 @@ const prettyDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, 
 
         <div class="relative">
           <div class="flex items-center justify-center gap-2.5 mb-8">
-            <img src="/logo.svg" class="w-10 h-10" alt="LearnHub" />
-            <span class="text-2xl font-extrabold text-slate-900">Learn<span class="text-brand-600">Hub</span></span>
+            <BrandLogo size="lg" tagline />
           </div>
 
           <p class="text-xs font-bold tracking-[0.3em] uppercase text-slate-400">Certificate of Completion</p>
@@ -64,13 +63,16 @@ const prettyDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, 
       </div>
 
       <!-- verify banner -->
-      <div class="mt-6 card p-4 flex items-center gap-3 max-w-3xl w-full no-print">
+      <div class="mt-6 card p-4 flex flex-wrap sm:flex-nowrap items-center gap-3 max-w-3xl w-full no-print">
         <ShieldCheck class="w-8 h-8 text-brand-600 shrink-0" />
-        <div class="text-sm flex-1">
+        <div class="text-sm flex-1 min-w-[12rem]">
           <b class="text-slate-800">Verified certificate.</b>
-          <span class="text-slate-500"> This certificate was issued by LearnHub and is authentic.</span>
+          <span class="text-slate-500"> This certificate was issued by Infohive Technology Ltd. and is authentic.</span>
         </div>
-        <button @click="print" class="btn-secondary shrink-0 text-sm"><Printer class="w-4 h-4" /> Print</button>
+        <div class="flex gap-2 shrink-0">
+          <a :href="`/api/certificates/${cert.serial}/pdf`" download class="btn-primary text-sm"><Download class="w-4 h-4" /> Download PDF</a>
+          <button @click="print" class="btn-secondary text-sm"><Printer class="w-4 h-4" /> Print</button>
+        </div>
       </div>
     </template>
   </div>

@@ -8,10 +8,12 @@ interface QuizPayload {
   id: number; title: string; description: string | null; passing_score: number
   max_attempts: number; questions: QuizQuestion[]; attempt_count: number
   best_score: number | null; passed: boolean; can_take: boolean
+  session_token: string | null   // signed start time for timed quizzes
 }
 interface AttemptResult {
   score: number; passed: boolean; passing_score: number
-  detail: Record<string, { correct: boolean; correct_answers: any[]; explanation: string | null }>
+  answers_revealed: boolean; attempts_left: number | null
+  detail: Record<string, { correct: boolean; correct_answers?: any[]; explanation?: string | null }>
 }
 
 const props = defineProps<{ lessonId: number }>()
@@ -39,7 +41,10 @@ const load = async () => {
 const submit = async () => {
   submitting.value = true
   try {
-    result.value = await api.post<AttemptResult>(`/quizzes/${quiz.value?.id}/attempts`, { answers: answers.value })
+    result.value = await api.post<AttemptResult>(`/quizzes/${quiz.value?.id}/attempts`, {
+      answers: answers.value,
+      session_token: quiz.value?.session_token,
+    })
     confirmSubmit.value = false
     if (result.value.passed) emit('passed')
   } catch {
@@ -56,9 +61,10 @@ const answeredCount = computed(() =>
   }).length
 )
 
-const retry = () => {
+const retry = async () => {
   result.value = null
   answers.value = {}
+  await load()   // fresh attempt state (and a fresh timer for timed quizzes)
 }
 
 const isAnswered = (q: QuizQuestion) => {
@@ -104,7 +110,10 @@ onMounted(load)
         <p class="mt-2 font-semibold" :class="result.passed ? 'text-brand-700' : 'text-rose-700'">
           {{ result.passed ? 'Passed - great job!' : `You need ${result.passing_score}% to pass` }}
         </p>
-        <div v-if="!result.passed" class="mt-4">
+        <p v-if="!result.passed && !result.answers_revealed" class="mt-2 text-xs text-slate-500">
+          Correct answers are shown once you pass or use your last attempt.
+        </p>
+        <div v-if="!result.passed && result.attempts_left !== 0" class="mt-4">
           <button @click="retry" class="btn-secondary inline-flex"><RotateCcw class="w-4 h-4" /> Try again</button>
         </div>
       </div>

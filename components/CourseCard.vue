@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { money } = usePlatform()
 import { Star, Users, Clock, BarChart3, PlayCircle, FileText, HelpCircle, FileDown } from 'lucide-vue-next'
 
 defineProps<{
@@ -54,7 +55,7 @@ const statusColors: Record<string, string> = {
 
       <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between mt-auto">
         <span class="text-xs text-slate-500 truncate">by {{ course.instructor.full_name }}</span>
-        <span class="font-extrabold text-slate-900">{{ course.price === 0 ? 'Free' : `$${course.price.toFixed(2)}` }}</span>
+        <span class="font-extrabold text-slate-900">{{ money(course.price) }}</span>
       </div>
     </div>
   </NuxtLink>

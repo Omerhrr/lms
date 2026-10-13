@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -11,10 +12,14 @@ from app.modules.enrollments.service import EnrollmentService
 router = APIRouter(prefix="/enrollments", tags=["enrollments"])
 
 
+class EnrollIn(BaseModel):
+    target_user_id: int | None = None
+
+
 @router.post("/{course_id}", status_code=201)
-def enroll(course_id: int, body: dict | None = None, db: Session = Depends(get_db), user: User = Depends(any_user)):
+def enroll(course_id: int, body: EnrollIn | None = None, db: Session = Depends(get_db), user: User = Depends(any_user)):
     course = CoursesService.get_course(db, course_id)
-    enrollment = EnrollmentService.enroll(db, course, user, (body or {}).get("target_user_id"))
+    enrollment = EnrollmentService.enroll(db, course, user, body.target_user_id if body else None)
     return {"id": enrollment.id, "message": "Enrolled successfully"}
 
 

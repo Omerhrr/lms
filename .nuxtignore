@@ -1,0 +1,6 @@
+# Keep the dev server from watching/rebuilding on non-app files
+mini-services/**
+*.log
+dev.log
+DEPLOY.md
+README.md

@@ -12,6 +12,18 @@ from app.modules.assessments.service import AssessmentService
 router = APIRouter(tags=["assessments"])
 
 
+def _assert_participant(db: Session, course, user: User, action: str = "take this quiz") -> None:
+    """Every role must be enrolled, own the course, or be an admin. (Previously only
+    students were checked, so any instructor account could read every quiz's answers.)"""
+    from app.modules.discussions.router import _can_access
+    from app.modules.courses.models import CourseStatus
+    is_manager = user.role == "admin" or course.instructor_id == user.id
+    if course.status != CourseStatus.published and not is_manager:
+        raise HTTPException(404, "Course not found")
+    if not _can_access(db, course, user):
+        raise HTTPException(403, f"Enroll in the course to {action}")
+
+
 # ============ instructor ============
 
 @router.get("/teach/lessons/{lesson_id}/quiz")
@@ -112,7 +124,7 @@ def quiz_attempts(quiz_id: int, db: Session = Depends(get_db), user: User = Depe
     return [
         {"id": a.id, "score": a.score, "passed": a.passed, "submitted_at": a.submitted_at.isoformat(),
          "user": {"id": a.user.id, "full_name": a.user.full_name, "email": a.user.email}}
-        for a in attempts
+        for a in attempts if a.user
     ]
 
 
@@ -122,7 +134,7 @@ def quiz_attempts(quiz_id: int, db: Session = Depends(get_db), user: User = Depe
 def add_assignment(course_id: int, body: dict, db: Session = Depends(get_db), user: User = Depends(staff_required)):
     course = CoursesService.get_course(db, course_id)
     CoursesService.assert_can_manage(course, user)
-    if not body.get("title"):
+    if not str(body.get("title") or "").strip():
         raise HTTPException(400, "Assignment title is required")
     from sqlalchemy import func
     from app.modules.assessments.models import Assignment as A
@@ -137,9 +149,7 @@ def update_assignment(assignment_id: int, body: dict, db: Session = Depends(get_
     if not a:
         raise HTTPException(404, "Assignment not found")
     CoursesService.assert_can_manage(CoursesService.get_course(db, a.course_id), user)
-    for f in ("title", "instructions", "max_points", "allow_file", "due_date"):
-        if f in body and body[f] is not None:
-            setattr(a, f, body[f])
+    AssessmentService.apply_assignment_fields(a, body)
     db.commit()
     return {"message": "Assignment updated"}
 
@@ -150,6 +160,7 @@ def delete_assignment(assignment_id: int, db: Session = Depends(get_db), user: U
     if not a:
         raise HTTPException(404, "Assignment not found")
     CoursesService.assert_can_manage(CoursesService.get_course(db, a.course_id), user)
+    db.query(Submission).filter(Submission.assignment_id == a.id).delete(synchronize_session=False)
     db.delete(a)
     db.commit()
     return {"message": "Assignment deleted"}
@@ -171,7 +182,7 @@ def assignment_submissions(assignment_id: int, db: Session = Depends(get_db), us
          "submitted_at": s.submitted_at.isoformat(), "status": s.status,
          "grade": s.grade, "feedback": s.feedback,
          "user": {"id": s.user.id, "full_name": s.user.full_name, "email": s.user.email}}
-        for s in subs
+        for s in subs if s.user
     ]
 
 
@@ -182,9 +193,11 @@ def grade_submission(submission_id: int, body: dict, db: Session = Depends(get_d
         raise HTTPException(404, "Submission not found")
     a = db.get(Assignment, sub.assignment_id)
     CoursesService.assert_can_manage(CoursesService.get_course(db, a.course_id), user)
-    if body.get("grade") is None:
-        raise HTTPException(400, "Grade is required")
-    AssessmentService.grade_submission(db, sub, float(body["grade"]), body.get("feedback"), user.id)
+    try:
+        grade = float(body.get("grade"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Grade is required and must be a number")
+    AssessmentService.grade_submission(db, sub, grade, body.get("feedback"), user.id)
     return {"message": "Submission graded"}
 
 
@@ -233,10 +246,9 @@ def lesson_quiz_for_student(lesson_id: int, db: Session = Depends(get_db), user:
     if not lesson:
         raise HTTPException(404, "Lesson not found")
     course = CoursesService.get_course(db, lesson.course_id)
-    if user.role == "student":
-        enrolled = db.query(Enrollment).filter_by(course_id=course.id, user_id=user.id).first()
-        if not enrolled:
-            raise HTTPException(403, "Enroll in the course to take this quiz")
+    _assert_participant(db, course, user)
+    from app.modules.enrollments.service import assert_lesson_unlocked
+    assert_lesson_unlocked(db, lesson, user)
     quiz = db.query(Quiz).filter(Quiz.lesson_id == lesson_id).first()
     if not quiz:
         raise HTTPException(404, "No quiz attached to this lesson")
@@ -250,10 +262,9 @@ def take_quiz(quiz_id: int, db: Session = Depends(get_db), user: User = Depends(
     quiz = AssessmentService.get_quiz(db, quiz_id)
     lesson = db.get(Lesson, quiz.lesson_id)
     course = CoursesService.get_course(db, lesson.course_id)
-    if user.role == "student":
-        enrolled = db.query(Enrollment).filter_by(course_id=course.id, user_id=user.id).first()
-        if not enrolled:
-            raise HTTPException(403, "Enroll in the course to take this quiz")
+    _assert_participant(db, course, user)
+    from app.modules.enrollments.service import assert_lesson_unlocked
+    assert_lesson_unlocked(db, lesson, user)
     return AssessmentService.quiz_public_payload(db, quiz, user.id)
 
 
@@ -263,11 +274,13 @@ def submit_quiz(quiz_id: int, body: dict, db: Session = Depends(get_db), user: U
     quiz = AssessmentService.get_quiz(db, quiz_id)
     lesson = db.get(Lesson, quiz.lesson_id)
     course = CoursesService.get_course(db, lesson.course_id)
-    if user.role == "student":
-        enrolled = db.query(Enrollment).filter_by(course_id=course.id, user_id=user.id).first()
-        if not enrolled:
-            raise HTTPException(403, "Enroll in the course to take this quiz")
-    result = AssessmentService.submit_attempt(db, quiz, user.id, body.get("answers") or {})
+    _assert_participant(db, course, user)
+    from app.modules.enrollments.service import assert_lesson_unlocked
+    assert_lesson_unlocked(db, lesson, user)
+    answers = body.get("answers") or {}
+    if not isinstance(answers, dict):
+        raise HTTPException(400, "answers must be an object keyed by question id")
+    result = AssessmentService.submit_attempt(db, quiz, user.id, answers, body.get("session_token"))
     if result["passed"] and user.role == "student":
         from app.modules.notifications.service import notify
         notify(db, user.id, "grade", "Quiz passed ✅",
@@ -293,11 +306,11 @@ def submit_assignment(assignment_id: int, body: dict, db: Session = Depends(get_
     a = db.get(Assignment, assignment_id)
     if not a:
         raise HTTPException(404, "Assignment not found")
-    if user.role == "student":
-        enrolled = db.query(Enrollment).filter_by(course_id=a.course_id, user_id=user.id).first()
-        if not enrolled:
-            raise HTTPException(403, "Enroll in the course to submit assignments")
-    sub = AssessmentService.submit_assignment(db, a, user.id, body.get("text_response"), body.get("file_url"))
+    _assert_participant(db, CoursesService.get_course(db, a.course_id), user, "submit assignments")
+    text = body.get("text_response")
+    if text is not None and (not isinstance(text, str) or len(text) > 50_000):
+        raise HTTPException(400, "Response is too long")
+    sub = AssessmentService.submit_assignment(db, a, user.id, text, body.get("file_url"))
     return {"id": sub.id, "status": sub.status, "message": "Submitted successfully"}
 
 

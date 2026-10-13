@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'New course - LearnHub' })
+useSeoMeta({ title: 'New course - Infohive' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const api = useApi()
@@ -68,7 +68,7 @@ const submit = async () => {
       </div>
       <div class="grid sm:grid-cols-2 gap-4">
         <div>
-          <label class="label">Price (USD, 0 = free)</label>
+          <label class="label">Price ({{ usePlatform().config.value.currency }}, 0 = free)</label>
           <input v-model.number="form.price" type="number" min="0" step="0.01" class="input" />
         </div>
         <div>

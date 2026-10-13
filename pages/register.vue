@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { UserPlus, GraduationCap, Briefcase } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Create account - LearnHub' })
+useSeoMeta({ title: 'Create account - Infohive' })
 definePageMeta({ middleware: 'guest' })
 
 const auth = useAuth()
@@ -16,7 +16,7 @@ const loading = ref(false)
 const submit = async () => {
   const f = form.value
   if (!f.full_name || !f.email || !f.password) return show('Please fill in all fields', 'error')
-  if (f.password.length < 6) return show('Password must be at least 6 characters', 'error')
+  if (f.password.length < 8) return show('Password must be at least 8 characters', 'error')
   if (f.password !== f.confirm) return show('Passwords do not match', 'error')
   loading.value = true
   try {
@@ -26,7 +26,9 @@ const submit = async () => {
       full_name: f.full_name,
       role: role.value,
     })
-    show(`Welcome to LearnHub, ${user.full_name.split(' ')[0]}!`)
+    show(user.instructor_requested
+      ? `Welcome, ${user.full_name.split(' ')[0]}! An admin will review your instructor request - you can start learning meanwhile.`
+      : `Welcome to Infohive, ${user.full_name.split(' ')[0]}!`)
     router.push(auth.homeFor(user))
   } catch (e: any) {
     show(e?.data?.detail || 'Registration failed', 'error')
@@ -54,9 +56,12 @@ const submit = async () => {
         </button>
         <button @click="role = 'instructor'" class="flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition"
           :class="role === 'instructor' ? 'bg-brand-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'">
-          <Briefcase class="w-4.5 h-4.5" /> I'm an instructor
+          <Briefcase class="w-4.5 h-4.5" /> I want to teach
         </button>
       </div>
+      <p v-if="role === 'instructor'" class="text-xs text-slate-500 text-center -mt-3 mb-4">
+        Instructor accounts are approved by an admin. You'll get a student account right away and teaching access once approved.
+      </p>
 
       <form @submit.prevent="submit" class="space-y-4">
         <div>
@@ -70,7 +75,7 @@ const submit = async () => {
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="label">Password</label>
-            <input v-model="form.password" type="password" class="input" placeholder="6+ characters" />
+            <input v-model="form.password" type="password" class="input" placeholder="8+ characters" />
           </div>
           <div>
             <label class="label">Confirm</label>
@@ -78,7 +83,7 @@ const submit = async () => {
           </div>
         </div>
         <button type="submit" class="btn-primary w-full py-3" :disabled="loading">
-          {{ loading ? 'Creating account…' : `Sign up as ${role}` }}
+          {{ loading ? 'Creating account…' : (role === 'instructor' ? 'Sign up & request instructor access' : 'Sign up as student') }}
         </button>
         <p class="text-center text-sm text-slate-500">
           Already have an account? <NuxtLink to="/login" class="text-brand-700 font-semibold hover:underline">Sign in</NuxtLink>

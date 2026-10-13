@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end API smoke test for LearnHub LMS.
+"""End-to-end API smoke test for Infohive LMS.
 
 Safe to re-run: test users/courses created here are reused across runs.
 Run against a freshly seeded database for exact seed-count assertions.
@@ -7,6 +7,8 @@ Run against a freshly seeded database for exact seed-count assertions.
 import uuid
 
 import requests
+
+import _testclient  # noqa: F401  (API-client auth mode)
 
 BASE = "http://127.0.0.1:8000/api"
 ok = fail = 0
@@ -28,9 +30,9 @@ def login(email, password):
 
 
 print("== auth ==")
-admin_tok, r = login("admin@learnhub.io", "Admin123!")
+admin_tok, r = login("admin@infohive.demo", "Admin123!")
 check("admin login", r.status_code == 200)
-sarah_tok, r = login("sarah@learnhub.io", "Teach123!")
+sarah_tok, r = login("sarah@infohive.demo", "Teach123!")
 check("instructor login", r.status_code == 200)
 stud_tok, r = login("emma@example.com", "Study123!")
 check("student login", r.status_code == 200)
@@ -62,8 +64,13 @@ r = requests.get(f"{BASE}/categories")
 check("categories", len(r.json()) >= 5)
 
 print("== enroll & progress ==")
-r = requests.post(f"{BASE}/enrollments/1", headers={"Authorization": f"Bearer {new_tok}"})
-check("self-enroll", r.status_code == 201 or (r.status_code == 400 and "Already enrolled" in r.text), r.text[:100])
+me_id = requests.get(f"{BASE}/auth/me", headers=N).json()["id"]
+r = requests.post(f"{BASE}/enrollments/1", headers=N)
+check("paid course: self-enroll blocked (no payments yet)",
+      r.status_code == 402 or (r.status_code == 400 and "Already enrolled" in r.text), r.text[:100])
+r = requests.post(f"{BASE}/enrollments/1", headers=S, json={"target_user_id": me_id})
+check("instructor enrolls student manually",
+      r.status_code == 201 or (r.status_code == 400 and "Already enrolled" in r.text), r.text[:100])
 r = requests.get(f"{BASE}/enrollments/my", headers=N)
 check("my enrollments", len(r.json()) >= 1)
 r = requests.post(f"{BASE}/enrollments/1/lessons/1/complete", headers=N)
@@ -169,3 +176,6 @@ r = requests.get(f"{BASE}" + r.json()["url"].replace("/api", "", 1))
 check("uploaded file served", r.status_code == 200 and b"hello world" in r.content)
 
 print(f"\n{'='*40}\nRESULT: {ok} passed, {fail} failed")
+
+import sys as _sys
+_sys.exit(1 if fail else 0)

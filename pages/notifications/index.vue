@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Bell, CheckCheck, GraduationCap, Megaphone, BarChart3, MessageSquare, BookOpen, Star } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Notifications - LearnHub' })
+useSeoMeta({ title: 'Notifications - Infohive' })
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
 const api = useApi()

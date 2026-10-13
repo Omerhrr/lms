@@ -8,27 +8,80 @@ from app.modules.enrollments.models import Enrollment, LessonProgress
 from app.shared.utils import utcnow
 
 
+def lesson_unlock_at(enrollment: Enrollment | None, lesson: Lesson):
+    """When a drip lesson opens for this enrollment (None = available now / not dripped)."""
+    from datetime import timedelta
+    if not enrollment or not lesson.drip_days or lesson.drip_days <= 0:
+        return None
+    return enrollment.enrolled_at + timedelta(days=lesson.drip_days)
+
+
+def lesson_is_locked(enrollment: Enrollment | None, lesson: Lesson) -> bool:
+    unlock = lesson_unlock_at(enrollment, lesson)
+    return unlock is not None and unlock > utcnow()
+
+
+def assert_lesson_unlocked(db: Session, lesson: Lesson, user: User) -> None:
+    """Course owners/admins see everything; students wait for drip-released lessons."""
+    course = db.get(Course, lesson.course_id)
+    if user.role == UserRole.admin or (course and course.instructor_id == user.id):
+        return
+    enrollment = db.query(Enrollment).filter_by(course_id=lesson.course_id, user_id=user.id).first()
+    if lesson_is_locked(enrollment, lesson):
+        unlock = lesson_unlock_at(enrollment, lesson)
+        raise HTTPException(403, f"This lesson unlocks on {unlock.strftime('%d %b %Y, %H:%M')} UTC")
+
+
+def missing_prerequisites(db: Session, course: Course, user_id: int) -> list[Course]:
+    """Prerequisite courses the user has not completed yet."""
+    from app.modules.courses.models import CoursePrerequisite
+    prereq_ids = [p.prerequisite_id for p in db.query(CoursePrerequisite).filter_by(course_id=course.id)]
+    if not prereq_ids:
+        return []
+    done = {e.course_id for e in db.query(Enrollment).filter(
+        Enrollment.user_id == user_id, Enrollment.course_id.in_(prereq_ids), Enrollment.status == "completed")}
+    return [c for c in db.query(Course).filter(Course.id.in_(prereq_ids)).all() if c.id not in done]
+
+
 class EnrollmentService:
 
     @staticmethod
-    def enroll(db: Session, course: Course, user: User, target_user_id: int | None = None) -> Enrollment:
+    def enroll(db: Session, course: Course, user: User, target_user_id: int | None = None,
+               *, paid: bool = False, quiet: bool = False) -> Enrollment:
         """Anyone may enroll themselves; instructors/admins may also enroll a student."""
-        if target_user_id is not None and target_user_id != user.id:
-            if user.role == UserRole.student:
-                raise HTTPException(403, "Students can only enroll themselves")
+        is_manager = user.role == UserRole.admin or course.instructor_id == user.id
+        manual = target_user_id is not None and target_user_id != user.id
+        if manual:
+            # only the course's own instructor (or an admin) may enroll someone else
+            if not is_manager:
+                raise HTTPException(403, "You can only enroll students in courses you manage")
             student = db.get(User, target_user_id)
-            if not student or student.role != UserRole.student:
+            if not student or student.role != UserRole.student or not student.is_active:
                 raise HTTPException(404, "Student not found")
             student_id = student.id
         else:
             student_id = user.id
 
-        if course.status != CourseStatus.published and course.instructor_id != user.id and user.role != UserRole.admin:
+        if course.status != CourseStatus.published and not is_manager:
             raise HTTPException(404, "Course not found")
+
+        if (course.price or 0) > 0 and not manual and not is_manager and not paid:
+            from app.core.config import settings
+            if settings.payments_enabled:
+                raise HTTPException(402, "This is a paid course - complete checkout to enroll.")
+            if not settings.ALLOW_UNPAID_ENROLLMENT:
+                raise HTTPException(402, "Online payment isn't available yet for this course. "
+                                         "Please contact the instructor to enroll.")
 
         existing = db.query(Enrollment).filter(Enrollment.course_id == course.id, Enrollment.user_id == student_id).first()
         if existing:
             raise HTTPException(400, "Already enrolled in this course")
+
+        if not manual and not is_manager:
+            missing = missing_prerequisites(db, course, student_id)
+            if missing:
+                names = ", ".join(f"“{c.title}”" for c in missing)
+                raise HTTPException(403, f"Complete {names} before enrolling in this course")
 
         enrollment = Enrollment(course_id=course.id, user_id=student_id)
         db.add(enrollment)
@@ -36,6 +89,10 @@ class EnrollmentService:
         db.refresh(enrollment)
 
         from app.modules.notifications.service import notify
+        from app.shared import emails
+        student = db.get(User, student_id)
+        if student and not quiet:
+            emails.enrolled(student.email, student.full_name, course.title, course.slug)
         notify(db, student_id, "enrollment", "Welcome aboard! 🎉",
                f"You are now enrolled in “{course.title}”. Start learning right away.",
                f"/learn/{course.slug}")
@@ -89,7 +146,13 @@ class EnrollmentService:
         from app.modules.notifications.service import notify
         from app.modules.courses.models import Course
         course = db.get(Course, enrollment.course_id)
+        if not course:
+            return
         cert = issue_certificate(db, enrollment.user_id, enrollment.course_id)
+        from app.shared import emails
+        student = db.get(User, enrollment.user_id)
+        if student:
+            emails.certificate_issued(student.email, student.full_name, course.title, cert.serial)
         notify(db, enrollment.user_id, "certificate", "🎓 Course completed!",
                f"Congratulations! You completed “{course.title}” and earned a certificate.",
                f"/certificates/{cert.serial}")
@@ -97,6 +160,7 @@ class EnrollmentService:
     @staticmethod
     def complete_lesson(db: Session, course: Course, lesson: Lesson, user: User) -> dict:
         enrollment = EnrollmentService.get_enrollment(db, course.id, user.id)
+        assert_lesson_unlocked(db, lesson, user)
         existing = db.query(LessonProgress).filter(
             LessonProgress.enrollment_id == enrollment.id, LessonProgress.lesson_id == lesson.id).first()
         if not existing:

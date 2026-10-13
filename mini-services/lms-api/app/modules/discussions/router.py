@@ -49,7 +49,9 @@ def create_thread(course_id: int, body: dict, db: Session = Depends(get_db), use
     title = (body.get("title") or "").strip()
     if not title:
         raise HTTPException(400, "Title is required")
-    t = Thread(course_id=course_id, author_id=user.id, title=title, body=body.get("body") or "")
+    if len(title) > 255 or len(body.get("body") or "") > 20_000:
+        raise HTTPException(400, "Thread is too long")
+    t = Thread(course_id=course_id, author_id=user.id, title=title, body=str(body.get("body") or ""))
     db.add(t)
     db.commit()
     db.refresh(t)
@@ -74,7 +76,7 @@ def thread_detail(thread_id: int, db: Session = Depends(get_db), user: User = De
         {"id": p.id, "parent_id": p.parent_id, "body": p.body, "created_at": p.created_at.isoformat(),
          "author": {"id": p.author.id, "full_name": p.author.full_name, "avatar_url": p.author.avatar_url,
                     "role": p.author.role.value}}
-        for p in sorted(t.posts, key=lambda x: x.created_at)
+        for p in sorted(t.posts, key=lambda x: x.created_at) if p.author
     ]
     data["can_moderate"] = user.id == course.instructor_id or user.role == UserRole.admin
     return data
@@ -90,20 +92,29 @@ def reply(thread_id: int, body: dict, db: Session = Depends(get_db), user: User 
         raise HTTPException(403, "Not allowed")
     if t.is_locked and not (user.id == course.instructor_id or user.role == UserRole.admin):
         raise HTTPException(403, "This thread is locked")
-    text = (body.get("body") or "").strip()
+    text = str(body.get("body") or "").strip()
     if not text:
         raise HTTPException(400, "Reply body is required")
-    p = Post(thread_id=thread_id, author_id=user.id, parent_id=body.get("parent_id"), body=text)
+    if len(text) > 20_000:
+        raise HTTPException(400, "Reply is too long")
+    parent = None
+    if body.get("parent_id") is not None:
+        try:
+            parent = db.get(Post, int(body["parent_id"]))
+        except (TypeError, ValueError):
+            parent = None
+        # a reply may only point at a post in this same thread
+        if not parent or parent.thread_id != thread_id:
+            raise HTTPException(400, "Invalid parent post")
+    p = Post(thread_id=thread_id, author_id=user.id, parent_id=parent.id if parent else None, body=text)
     db.add(p)
     db.commit()
     db.refresh(p)
     # notify thread author (and parent-post author) about the reply
     from app.modules.notifications.service import notify
     targets = {t.author_id}
-    if body.get("parent_id"):
-        parent = db.get(Post, body["parent_id"])
-        if parent:
-            targets.add(parent.author_id)
+    if parent:
+        targets.add(parent.author_id)
     targets.discard(user.id)
     for uid in targets:
         notify(db, uid, "discussion", "New reply to “{0}”".format(t.title[:40]),
@@ -144,6 +155,8 @@ def delete_thread(thread_id: int, db: Session = Depends(get_db), user: User = De
     course = CoursesService.get_course(db, t.course_id)
     if t.author_id != user.id and course.instructor_id != user.id and user.role != UserRole.admin:
         raise HTTPException(403, "Not allowed")
+    db.query(Post).filter(Post.thread_id == t.id).update({"parent_id": None}, synchronize_session=False)
+    db.flush()
     db.delete(t)
     db.commit()
     return {"message": "Thread deleted"}

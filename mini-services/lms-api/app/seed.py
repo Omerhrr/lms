@@ -20,11 +20,28 @@ import app.modules.discussions.models as m_disc    # noqa: E402
 import app.modules.notifications.models as m_notif # noqa: E402
 import app.modules.certificates.models as m_cert   # noqa: E402
 
+import app.modules.learning.models as m_learning  # noqa: E402,F401
+import app.modules.payments.models as m_payments  # noqa: E402,F401
+import app.modules.live.models as m_live  # noqa: E402,F401
+import app.modules.site.models as m_site  # noqa: E402,F401
 from app.modules.certificates.service import issue_certificate  # noqa: E402
 
 
+def demo_price(usd: float) -> float:
+    """Demo prices in the configured payment currency (whole naira for NGN)."""
+    from app.core.config import settings
+    if settings.PAYMENT_CURRENCY.upper() == "NGN":
+        return {49.99: 25000.0, 29.99: 15000.0, 19.99: 9500.0}.get(usd, round(usd * 500, -2))
+    return usd
+
+
 def reset():
-    os.makedirs("data", exist_ok=True)   # sqlite file lives here on fresh clones
+    from app.core.config import settings
+    if not settings.LMS_DATABASE_URL.startswith("sqlite") and "--yes" not in sys.argv:
+        sys.exit("Refusing to wipe a non-SQLite database. This DELETES ALL DATA in it.\n"
+                 "If this is a fresh Supabase database you want demo data in, re-run with:  python app/seed.py --yes")
+    if settings.LMS_DATABASE_URL.startswith("sqlite"):
+        os.makedirs("data", exist_ok=True)   # sqlite file lives here on fresh clones
     Base_metadata = m_auth.Base.metadata
     Base_metadata.drop_all(bind=engine)
     Base_metadata.create_all(bind=engine)
@@ -36,14 +53,14 @@ def main():
     now = utcnow()
 
     # ---------- users ----------
-    admin = m_auth.User(email="admin@learnhub.io", password_hash=hash_password("Admin123!"),
+    admin = m_auth.User(email="admin@infohive.demo", password_hash=hash_password("Admin123!"),
                         full_name="Amara Okafor", role=m_auth.UserRole.admin,
                         headline="Platform administrator")
-    sarah = m_auth.User(email="sarah@learnhub.io", password_hash=hash_password("Teach123!"),
+    sarah = m_auth.User(email="sarah@infohive.demo", password_hash=hash_password("Teach123!"),
                         full_name="Sarah Johnson", role=m_auth.UserRole.instructor,
                         headline="Senior Software Engineer & Educator",
                         bio="Sarah has 12 years of industry experience and has taught over 50,000 students how to code. She focuses on practical, project-driven learning.")
-    james = m_auth.User(email="james@learnhub.io", password_hash=hash_password("Teach123!"),
+    james = m_auth.User(email="james@infohive.demo", password_hash=hash_password("Teach123!"),
                         full_name="James Chen", role=m_auth.UserRole.instructor,
                         headline="Marketing Strategist & Designer",
                         bio="James has led growth teams at three startups and now teaches marketing and design."
@@ -95,7 +112,7 @@ def main():
             "<p>Every section includes practical exercises and quizzes to lock in your knowledge.</p>"
         ),
         category_id=cats["Development"].id, instructor_id=sarah.id,
-        status=m_course.CourseStatus.published, price=49.99,
+        status=m_course.CourseStatus.published, price=demo_price(49.99),
         level=m_course.CourseLevel.beginner, is_featured=True,
         tags=["python", "programming", "beginner-friendly"],
     )
@@ -163,7 +180,7 @@ def main():
             "<li> Paid ads on a bootstrap budget</li></ul>"
         ),
         category_id=cats["Marketing"].id, instructor_id=james.id,
-        status=m_course.CourseStatus.published, price=29.99,
+        status=m_course.CourseStatus.published, price=demo_price(29.99),
         level=m_course.CourseLevel.intermediate, is_featured=True,
         tags=["marketing", "seo", "growth"],
     )
@@ -231,7 +248,7 @@ def main():
         summary="Turn raw data into decisions using spreadsheets: cleaning, pivot tables, charts and dashboards.",
         description="<h2>Coming soon</h2><p>This hands-on course is being prepared. Watch this space!</p>",
         category_id=cats["Data Science"].id, instructor_id=james.id,
-        status=m_course.CourseStatus.draft, price=19.99, level=m_course.CourseLevel.beginner,
+        status=m_course.CourseStatus.draft, price=demo_price(19.99), level=m_course.CourseLevel.beginner,
         tags=["data", "spreadsheets", "excel"],
     )
     db.add(c4); db.commit()
@@ -344,7 +361,7 @@ def main():
     n(students[1], "certificate", "🎓 Course completed!", "Congratulations! You completed “Python Programming: Zero to Hero”.", "#", 2)
     n(students[0], "grade", "Quiz results available", "You scored 50% on “Python Fundamentals Quiz”. Review and try again!", "/learn/python-programming-zero-to-hero", 1)
     n(sarah, "discussion", "New question in Python Programming", "Michael Brown asked: “Stuck on the guessing game exercise”", "/courses/python-programming-zero-to-hero", 2, True)
-    n(admin, "system", "👋 Welcome to LearnHub", "Your platform is ready. Explore the admin area to manage users and courses.", "/admin", 25, True)
+    n(admin, "system", "👋 Welcome to Infohive", "Your platform is ready. Explore the admin area to manage users and courses.", "/admin", 25, True)
     db.commit()
 
     # ---------- certificates ----------
@@ -353,9 +370,9 @@ def main():
 
     db.close()
     print("✅ Seed complete!")
-    print("   admin     : admin@learnhub.io / Admin123!")
-    print("   instructor: sarah@learnhub.io / Teach123!")
-    print("   instructor: james@learnhub.io / Teach123!")
+    print("   admin     : admin@infohive.demo / Admin123!")
+    print("   instructor: sarah@infohive.demo / Teach123!")
+    print("   instructor: james@infohive.demo / Teach123!")
     print("   student   : michael@example.com / Study123!")
     print("   student   : emma@example.com / Study123!  (completed Python course)")
 

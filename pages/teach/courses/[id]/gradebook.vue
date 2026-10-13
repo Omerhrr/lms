@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ClipboardList } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Gradebook - LearnHub' })
+useSeoMeta({ title: 'Gradebook - Infohive' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const route = useRoute()
@@ -118,7 +118,7 @@ const grade = async () => {
           </span>
         </div>
         <div v-if="viewing.submission.text_response" class="rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm text-slate-700 whitespace-pre-wrap font-mono">{{ viewing.submission.text_response }}</div>
-        <a v-if="viewing.submission.file_url" :href="viewing.submission.file_url" target="_blank" class="btn-secondary text-sm inline-flex">Download attachment</a>
+        <a v-if="safeUrl(viewing.submission.file_url)" :href="safeUrl(viewing.submission.file_url)" rel="noopener noreferrer" target="_blank" class="btn-secondary text-sm inline-flex">Download attachment</a>
 
         <div class="border-t border-slate-100 pt-4 grid sm:grid-cols-3 gap-3">
           <div>

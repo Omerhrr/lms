@@ -1,10 +1,16 @@
 <script setup lang="ts">
-/** Lightweight renderer for lesson text: supports #/## headings, - bullets and paragraphs. Color-neutral (inherits). */
+/**
+ * Renders lesson text. New lessons are HTML from the rich editor (sanitized by the API with an
+ * allow-list, so v-html is safe here). Older lessons are plain text with "#"/"-" markup.
+ */
 const props = defineProps<{ content: string }>()
+
+const isHtml = computed(() => /<\w+[^>]*>/.test(props.content || ''))
 
 interface Block { type: 'h1' | 'h2' | 'ul' | 'p'; text?: string; items?: string[] }
 
 const blocks = computed<Block[]>(() => {
+  if (isHtml.value) return []
   const out: Block[] = []
   let list: string[] | null = null
   const flushList = () => {
@@ -30,7 +36,9 @@ const blocks = computed<Block[]>(() => {
 </script>
 
 <template>
-  <div class="rich-text inherit-color">
+  <!-- eslint-disable-next-line vue/no-v-html -->
+  <div v-if="isHtml" class="rich-text inherit-color" v-html="content" />
+  <div v-else class="rich-text inherit-color">
     <template v-for="(b, i) in blocks" :key="i">
       <h2 v-if="b.type === 'h2'">{{ b.text }}</h2>
       <h1 v-else-if="b.type === 'h1'">{{ b.text }}</h1>
@@ -43,7 +51,10 @@ const blocks = computed<Block[]>(() => {
 </template>
 
 <style scoped>
-.inherit-color { color: inherit; }
-.inherit-color :deep(h1), .inherit-color :deep(h2) { color: inherit; }
+.inherit-color { color: inherit; overflow-wrap: anywhere; }
+.inherit-color :deep(h1), .inherit-color :deep(h2), .inherit-color :deep(h3) { color: inherit; }
 .inherit-color :deep(p), .inherit-color :deep(li) { color: inherit; }
+.inherit-color :deep(img) { max-width: 100%; height: auto; border-radius: 0.75rem; margin: 1rem 0; }
+.inherit-color :deep(pre) { overflow-x: auto; }
+.inherit-color :deep(a) { text-decoration: underline; }
 </style>

@@ -1,37 +1,33 @@
 <script setup lang="ts">
 import { KeyRound } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Reset password - LearnHub' })
+useSeoMeta({ title: 'Reset password - Infohive' })
 
 const api = useApi()
 const { show } = useToast()
 const router = useRouter()
+const route = useRoute()
 
+// The reset link (sent by email) carries the token: /forgot-password?token=...
 const email = ref('')
-const resetToken = ref('')
+const resetToken = ref((route.query.token as string) || '')
 const newPassword = ref('')
-const stage = ref<'request' | 'reset' | 'done'>('request')
+const stage = ref<'request' | 'sent' | 'reset' | 'done'>(resetToken.value ? 'reset' : 'request')
 const loading = ref(false)
 
 const request = async () => {
   if (!email.value) return show('Enter your account email', 'error')
   loading.value = true
   try {
-    const res = await api.post<{ message: string; reset_token?: string }>('/auth/forgot-password', { email: email.value })
-    if (res.reset_token) {
-      resetToken.value = res.reset_token
-      stage.value = 'reset'
-      show('Reset token generated (demo mode - normally emailed)', 'info')
-    } else {
-      show(res.message, 'info')
-    }
+    await api.post('/auth/forgot-password', { email: email.value }, true)
+    stage.value = 'sent'
   } catch (e: any) {
     show(e?.data?.detail || 'Request failed', 'error')
   } finally { loading.value = false }
 }
 
 const reset = async () => {
-  if (newPassword.value.length < 6) return show('Password must be at least 6 characters', 'error')
+  if (newPassword.value.length < 8) return show('Password must be at least 8 characters', 'error')
   loading.value = true
   try {
     await api.post('/auth/reset-password', { token: resetToken.value, new_password: newPassword.value })
@@ -53,7 +49,7 @@ const reset = async () => {
         </div>
         <h1 class="text-2xl font-extrabold text-slate-900">Reset your password</h1>
         <p class="text-slate-500 text-sm mt-1">
-          {{ stage === 'request' ? "We'll generate a secure reset token for your account" : 'Enter the new password for your account' }}
+          {{ stage === 'reset' ? 'Enter the new password for your account' : "We'll send a reset link to your email" }}
         </p>
       </div>
 
@@ -62,18 +58,19 @@ const reset = async () => {
           <label class="label">Account email</label>
           <input v-model="email" type="email" class="input" placeholder="you@example.com" @keyup.enter="request" />
         </div>
-        <button class="btn-primary w-full" :disabled="loading" @click="request">{{ loading ? 'Working…' : 'Generate reset token' }}</button>
-        <p class="text-xs text-slate-400 text-center">Demo mode returns the token directly - production would email it.</p>
+        <button class="btn-primary w-full" :disabled="loading" @click="request">{{ loading ? 'Working…' : 'Send reset link' }}</button>
+      </div>
+
+      <div v-else-if="stage === 'sent'" class="card p-8 text-center">
+        <div class="text-4xl mb-2">📬</div>
+        <p class="font-semibold text-slate-800">Check your email</p>
+        <p class="text-sm text-slate-500 mt-1">If an account exists for {{ email }}, a reset link is on its way. It expires in 30 minutes.</p>
       </div>
 
       <div v-else-if="stage === 'reset'" class="card p-6 space-y-4">
         <div>
-          <label class="label">Reset token</label>
-          <input v-model="resetToken" class="input font-mono text-xs" />
-        </div>
-        <div>
           <label class="label">New password</label>
-          <input v-model="newPassword" type="password" class="input" placeholder="6+ characters" />
+          <input v-model="newPassword" type="password" class="input" placeholder="8+ characters" />
         </div>
         <button class="btn-primary w-full" :disabled="loading" @click="reset">{{ loading ? 'Resetting…' : 'Set new password' }}</button>
       </div>

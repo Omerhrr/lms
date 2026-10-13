@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import String, Boolean, Text, Enum, DateTime, ForeignKey
+from sqlalchemy import Integer, String, Boolean, Text, Enum, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.base import Base
@@ -22,6 +22,10 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.student)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # bumped on password change/reset/logout-all: invalidates every outstanding access token
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # set when someone signs up asking to teach; an admin grants the instructor role
+    instructor_requested: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     headline: Mapped[str | None] = mapped_column(String(255), nullable=True)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)

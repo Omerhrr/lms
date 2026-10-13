@@ -1,7 +1,9 @@
 <script setup lang="ts">
+const { config: _platform } = usePlatform()
+const revenue = (n?: number | null) => new Intl.NumberFormat(undefined, { style: 'currency', currencyDisplay: 'narrowSymbol', currency: _platform.value.currency, maximumFractionDigits: 0 }).format(n || 0)
 import { BookOpen, Users, Trophy, DollarSign, Plus, TrendingUp } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Instructor Studio - LearnHub' })
+useSeoMeta({ title: 'Instructor Studio - Infohive' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const api = useApi()
@@ -51,8 +53,14 @@ const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
       </div>
       <div class="card p-5 flex items-center gap-4">
         <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center"><DollarSign class="w-5.5 h-5.5 text-amber-600" /></div>
-        <div><div class="text-2xl font-extrabold">${{ overview?.totals.revenue?.toLocaleString() }}</div><div class="text-xs text-slate-400">Revenue</div></div>
+        <div><div class="text-2xl font-extrabold">{{ revenue(overview?.totals.revenue) }}</div><div class="text-xs text-slate-400">Revenue</div></div>
       </div>
+    </div>
+
+    <!-- live classes I'm hosting -->
+    <div class="card p-5 mb-6">
+      <h2 class="font-bold text-slate-800 mb-3">Upcoming live classes</h2>
+      <LiveSessionList compact show-course />
     </div>
 
     <!-- per course -->
@@ -67,7 +75,7 @@ const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
             <td>{{ c.enrollments }}</td>
             <td>{{ c.completions }}</td>
             <td>{{ c.completion_rate }}%</td>
-            <td class="font-semibold">${{ c.revenue?.toLocaleString() }}</td>
+            <td class="font-semibold">{{ revenue(c.revenue) }}</td>
             <td><NuxtLink :to="`/teach/courses/${c.id}/analytics`" class="text-brand-700 hover:underline text-sm font-semibold flex items-center gap-1"><TrendingUp class="w-3.5 h-3.5" /> Details</NuxtLink></td>
           </tr>
           <tr v-if="overview && overview.per_course.length === 0"><td colspan="7" class="text-center text-slate-400 py-8">No courses yet - create your first one!</td></tr>

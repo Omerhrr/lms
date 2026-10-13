@@ -7,8 +7,10 @@ from app.modules.auth.models import User
 from app.modules.courses.models import CourseStatus
 from app.modules.courses.schemas import (
     CategoryIn, CategoryOut, CourseCreateIn, CourseUpdateIn, ReviewIn,
+    SectionIn, MoveIn, LessonCreateIn, LessonUpdateIn, PrerequisitesIn,
 )
 from app.modules.courses.service import CoursesService
+from app.shared.utils import utcnow, sanitize_rich_content
 
 router = APIRouter(tags=["courses"])
 
@@ -77,7 +79,40 @@ def course_detail(slug: str, db: Session = Depends(get_db), user: User | None = 
         data["is_enrolled"] = False
         data["has_reviewed"] = False
     data["can_manage"] = bool(user and (user.id == course.instructor_id or user.role == "admin"))
+
+    # drip schedule: when each lesson opens for this student
+    from app.modules.enrollments.models import Enrollment
+    from app.modules.enrollments.service import lesson_unlock_at, missing_prerequisites
+    from app.modules.courses.models import Lesson as _Lesson
+    enrollment = (db.query(Enrollment).filter_by(course_id=course.id, user_id=user.id).first()
+                  if user and not data["can_manage"] else None)
+    if enrollment:
+        lessons = {l.id: l for l in db.query(_Lesson).filter(_Lesson.course_id == course.id)}
+        now = utcnow()
+        for s in data["sections"]:
+            for l in s["lessons"]:
+                unlock = lesson_unlock_at(enrollment, lessons[l["id"]])
+                l["unlocks_at"] = unlock.isoformat() if unlock and unlock > now else None
+
+    # prerequisites, with this viewer's completion status
+    from app.modules.courses.models import CoursePrerequisite, Course as _Course
+    prereq_ids = [p.prerequisite_id for p in db.query(CoursePrerequisite).filter_by(course_id=course.id)]
+    missing_ids = {c.id for c in missing_prerequisites(db, course, user.id)} if user else set(prereq_ids)
+    data["prerequisites"] = [
+        {"id": c.id, "title": c.title, "slug": c.slug, "completed": c.id not in missing_ids}
+        for c in db.query(_Course).filter(_Course.id.in_(prereq_ids)).all()
+    ] if prereq_ids else []
+    data["prerequisites_met"] = all(p["completed"] for p in data["prerequisites"])
     return data
+
+
+@router.put("/teach/courses/{course_id}/prerequisites")
+def set_prerequisites(course_id: int, body: PrerequisitesIn, db: Session = Depends(get_db),
+                      user: User = Depends(staff_required)):
+    course = CoursesService.get_course(db, course_id)
+    CoursesService.assert_can_manage(course, user)
+    CoursesService.set_prerequisites(db, course, body.course_ids)
+    return {"message": "Prerequisites updated"}
 
 
 @router.get("/courses/{slug}/reviews")
@@ -103,6 +138,9 @@ def lesson_content(lesson_id: int, db: Session = Depends(get_db), user: User | N
     if not lesson:
         raise HTTPException(404, "Lesson not found")
     course = CoursesService.get_course(db, lesson.course_id)
+    is_owner = bool(user and (user.role == "admin" or course.instructor_id == user.id))
+    if course.status != CourseStatus.published and not is_owner:
+        raise HTTPException(404, "Lesson not found")
 
     allowed = bool(lesson.is_preview)
     if user and not allowed:
@@ -112,12 +150,17 @@ def lesson_content(lesson_id: int, db: Session = Depends(get_db), user: User | N
             allowed = db.query(Enrollment).filter_by(course_id=course.id, user_id=user.id).first() is not None
     if not allowed:
         raise HTTPException(403, "Enroll in this course to access this lesson")
+    if user and not lesson.is_preview:
+        from app.modules.enrollments.service import assert_lesson_unlocked
+        assert_lesson_unlocked(db, lesson, user)
 
     return {
         "id": lesson.id, "section_id": lesson.section_id, "course_id": lesson.course_id,
-        "title": lesson.title, "type": lesson.type.value, "content": lesson.content,
+        "title": lesson.title, "type": lesson.type.value,
+        "content": sanitize_rich_content(lesson.content),
         "video_url": lesson.video_url, "file_url": lesson.file_url,
         "duration_minutes": lesson.duration_minutes, "is_preview": lesson.is_preview,
+        "drip_days": lesson.drip_days,
     }
 
 
@@ -145,7 +188,7 @@ def edit_course_data(course_id: int, db: Session = Depends(get_db), user: User =
 def update_course(course_id: int, data: CourseUpdateIn, db: Session = Depends(get_db), user: User = Depends(staff_required)):
     course = CoursesService.get_course(db, course_id)
     CoursesService.assert_can_manage(course, user)
-    CoursesService.update_course(db, course, data)
+    CoursesService.update_course(db, course, data, user)
     return {"message": "Course updated"}
 
 
@@ -186,10 +229,10 @@ def delete_course(course_id: int, db: Session = Depends(get_db), user: User = De
 # ---- sections ----
 
 @router.post("/teach/courses/{course_id}/sections", status_code=201)
-def add_section(course_id: int, body: dict, db: Session = Depends(get_db), user: User = Depends(staff_required)):
+def add_section(course_id: int, body: SectionIn, db: Session = Depends(get_db), user: User = Depends(staff_required)):
     course = CoursesService.get_course(db, course_id)
     CoursesService.assert_can_manage(course, user)
-    title = (body.get("title") or "").strip()
+    title = (body.title or "").strip()
     if not title:
         raise HTTPException(400, "Section title is required")
     s = CoursesService.add_section(db, course, title)
@@ -197,14 +240,14 @@ def add_section(course_id: int, body: dict, db: Session = Depends(get_db), user:
 
 
 @router.put("/teach/sections/{section_id}")
-def update_section(section_id: int, body: dict, db: Session = Depends(get_db), user: User = Depends(staff_required)):
+def update_section(section_id: int, body: SectionIn, db: Session = Depends(get_db), user: User = Depends(staff_required)):
     from app.modules.courses.models import Section
     section = db.get(Section, section_id)
     if not section:
         raise HTTPException(404, "Section not found")
     course = CoursesService.get_course(db, section.course_id)
     CoursesService.assert_can_manage(course, user)
-    CoursesService.update_section(db, section, (body.get("title") or section.title))
+    CoursesService.update_section(db, section, ((body.title or "").strip() or section.title))
     return {"message": "Section updated"}
 
 
@@ -221,36 +264,35 @@ def delete_section(section_id: int, db: Session = Depends(get_db), user: User = 
 
 
 @router.post("/teach/sections/{section_id}/move")
-def move_section(section_id: int, body: dict, db: Session = Depends(get_db), user: User = Depends(staff_required)):
+def move_section(section_id: int, body: MoveIn, db: Session = Depends(get_db), user: User = Depends(staff_required)):
     from app.modules.courses.models import Section
     section = db.get(Section, section_id)
     if not section:
         raise HTTPException(404, "Section not found")
     course = CoursesService.get_course(db, section.course_id)
     CoursesService.assert_can_manage(course, user)
-    CoursesService.move_section(db, course, section, body.get("direction", "up"))
+    CoursesService.move_section(db, course, section, body.direction)
     return {"message": "Section moved"}
 
 
 # ---- lessons ----
 
 @router.post("/teach/sections/{section_id}/lessons", status_code=201)
-def add_lesson(section_id: int, body: dict, db: Session = Depends(get_db), user: User = Depends(staff_required)):
+def add_lesson(section_id: int, body: LessonCreateIn, db: Session = Depends(get_db), user: User = Depends(staff_required)):
     from app.modules.courses.models import Section
     section = db.get(Section, section_id)
     if not section:
         raise HTTPException(404, "Section not found")
     course = CoursesService.get_course(db, section.course_id)
     CoursesService.assert_can_manage(course, user)
-    title = (body.get("title") or "").strip()
-    if not title:
+    if not body.title.strip():
         raise HTTPException(400, "Lesson title is required")
-    lesson = CoursesService.add_lesson(db, section, **body)
+    lesson = CoursesService.add_lesson(db, section, body)
     return {"id": lesson.id, "title": lesson.title, "type": lesson.type.value, "position": lesson.position}
 
 
 @router.put("/teach/lessons/{lesson_id}")
-def update_lesson(lesson_id: int, body: dict, db: Session = Depends(get_db), user: User = Depends(staff_required)):
+def update_lesson(lesson_id: int, body: LessonUpdateIn, db: Session = Depends(get_db), user: User = Depends(staff_required)):
     from app.modules.courses.models import Lesson
     lesson = db.get(Lesson, lesson_id)
     if not lesson:
@@ -274,7 +316,7 @@ def delete_lesson(lesson_id: int, db: Session = Depends(get_db), user: User = De
 
 
 @router.post("/teach/lessons/{lesson_id}/move")
-def move_lesson(lesson_id: int, body: dict, db: Session = Depends(get_db), user: User = Depends(staff_required)):
+def move_lesson(lesson_id: int, body: MoveIn, db: Session = Depends(get_db), user: User = Depends(staff_required)):
     from app.modules.courses.models import Lesson
     lesson = db.get(Lesson, lesson_id)
     if not lesson:
@@ -282,5 +324,5 @@ def move_lesson(lesson_id: int, body: dict, db: Session = Depends(get_db), user:
     course = CoursesService.get_course(db, lesson.course_id)
     CoursesService.assert_can_manage(course, user)
     section = lesson.section
-    CoursesService.move_lesson(db, section, lesson, body.get("direction", "up"))
+    CoursesService.move_lesson(db, section, lesson, body.direction)
     return {"message": "Lesson moved"}

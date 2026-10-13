@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Users, Trophy, TrendingUp } from 'lucide-vue-next'
 
-useSeoMeta({ title: 'Students - LearnHub' })
+useSeoMeta({ title: 'Students - Infohive' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
 
 const route = useRoute()
