@@ -48,7 +48,7 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
         <button class="w-full text-left flex flex-wrap items-start gap-x-3 gap-y-1" @click="open = open === e.id ? null : e.id" :aria-expanded="open === e.id">
           <span class="badge bg-brand-50 text-brand-700">{{ e.topic }}</span>
           <span class="font-semibold text-slate-800 flex-1 min-w-0 truncate">{{ e.subject || e.message.slice(0, 70) }}</span>
-          <span class="text-xs text-slate-400 whitespace-nowrap">{{ when(e.created_at) }}</span>
+          <span class="text-xs text-slate-500 whitespace-nowrap">{{ when(e.created_at) }}</span>
           <span class="w-full text-sm text-slate-500">{{ e.name }} · {{ e.email }}</span>
         </button>
         <div v-if="open === e.id" class="mt-4 border-t border-slate-100 pt-4">

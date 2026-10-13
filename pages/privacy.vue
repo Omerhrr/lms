@@ -1,10 +1,11 @@
 <script setup lang="ts">
 useSeoMeta({ title: 'Privacy Policy - Infohive Technology Ltd.' })
 const { config } = usePlatform()
+const { content: site } = useSiteContent()
 </script>
 
 <template>
-  <LegalPage title="Privacy Policy" updated="October 2026">
+  <LegalPage title="Privacy Policy" updated="October 2026" :html="site?.legal.privacy_html" :custom-updated="site?.legal.updated">
     <p>Infohive Technology Ltd. ("Infohive", "we") respects your privacy. This policy explains what personal data we collect through our website and Learning Management System (LMS), why we collect it, and your choices.</p>
     <h2>Information we collect</h2>
     <ul>

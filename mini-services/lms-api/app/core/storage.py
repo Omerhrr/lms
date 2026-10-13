@@ -19,6 +19,14 @@ CONTENT_TYPES = {
 }
 
 
+def _auth_headers() -> dict:
+    """New-style Supabase secret keys (sb_secret_...) go only in `apikey`; legacy service_role JWTs in both."""
+    key = settings.SUPABASE_SERVICE_KEY.strip()
+    if key.startswith("sb_"):
+        return {"apikey": key}
+    return {"apikey": key, "Authorization": f"Bearer {key}"}
+
+
 def save_upload(filename: str, data: bytes, ext: str) -> str:
     """Store the bytes and return the public URL."""
     if settings.use_supabase_storage:
@@ -27,8 +35,7 @@ def save_upload(filename: str, data: bytes, ext: str) -> str:
         try:
             r = httpx.post(
                 f"{base}/storage/v1/object/{settings.SUPABASE_BUCKET}/{path}", content=data, timeout=60,
-                headers={"Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
-                         "apikey": settings.SUPABASE_SERVICE_KEY,
+                headers={**_auth_headers(),
                          "Content-Type": CONTENT_TYPES.get(ext, "application/octet-stream"),
                          "x-upsert": "false", "cache-control": "31536000"},
             )

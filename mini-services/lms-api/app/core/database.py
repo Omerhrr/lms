@@ -48,6 +48,13 @@ _ADDED_COLUMNS = {
     "lessons": {
         "drip_days": ("INTEGER", "INTEGER"),
     },
+    "courses": {
+        "outcomes": ("JSON", "JSON"),
+    },
+    "certificates": {
+        "revoked_at": ("DATETIME", "TIMESTAMP"),
+        "revoke_reason": ("VARCHAR(500)", "VARCHAR(500)"),
+    },
 }
 
 
@@ -61,3 +68,25 @@ def ensure_columns() -> None:
             for name, (sqlite_ddl, pg_ddl) in cols.items():
                 if name not in existing:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {sqlite_ddl if _is_sqlite else pg_ddl}"))
+
+
+def secure_tables() -> int:
+    """Postgres only: switch on Row Level Security for every app table, with no policies.
+
+    On Supabase, tables in `public` are also reachable through its auto-generated REST API with the
+    public anon key. RLS with no policies blocks that path entirely. The app itself connects as the
+    table owner, and Postgres doesn't apply RLS to a table's owner, so the app is unaffected.
+    Idempotent; returns how many tables were changed.
+    """
+    if _is_sqlite:
+        return 0
+    from app.shared.base import Base
+    names = list(Base.metadata.tables)
+    with engine.begin() as conn:
+        rows = conn.execute(text(
+            "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE n.nspname = current_schema() AND c.relkind = 'r' AND NOT c.relrowsecurity "
+            "AND c.relname = ANY(:names)"), {"names": names}).scalars().all()
+        for name in rows:
+            conn.execute(text(f'ALTER TABLE "{name}" ENABLE ROW LEVEL SECURITY'))
+    return len(rows)

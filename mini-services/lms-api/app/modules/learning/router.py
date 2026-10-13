@@ -192,3 +192,74 @@ def my_calendar(start: str | None = Query(None), end: str | None = Query(None),
         })
     events.sort(key=lambda e: e["date"])
     return events
+
+
+# ---------- momentum ----------
+
+@router.get("/me/learning-summary")
+def learning_summary(db: Session = Depends(get_db), user: User = Depends(any_user)):
+    """Streak and weekly activity for the learner dashboard."""
+    from app.modules.enrollments.models import LessonProgress
+    rows = (db.query(LessonProgress.completed_at, Lesson.duration_minutes)
+            .join(Enrollment, Enrollment.id == LessonProgress.enrollment_id)
+            .join(Lesson, Lesson.id == LessonProgress.lesson_id)
+            .filter(Enrollment.user_id == user.id).all())
+    today = utcnow().date()
+    days = {r[0].date() for r in rows if r[0]}
+    streak, d = 0, today if today in days else today - timedelta(days=1)
+    while d in days:
+        streak, d = streak + 1, d - timedelta(days=1)
+    week_start = today - timedelta(days=today.weekday())   # Monday
+    this_week = [r for r in rows if r[0] and r[0].date() >= week_start]
+    return {
+        "streak_days": streak,
+        "active_today": today in days,
+        "lessons_this_week": len(this_week),
+        "minutes_this_week": sum(r[1] or 0 for r in this_week),
+        "weekly_goal": 3,
+        "week": [{"date": (week_start + timedelta(days=i)).isoformat(),
+                  "active": (week_start + timedelta(days=i)) in days} for i in range(7)],
+    }
+
+
+@router.get("/teach/actions")
+def teaching_actions(db: Session = Depends(get_db), user: User = Depends(any_user)):
+    """What needs the instructor's attention: grading, learners who stalled, unfinished drafts."""
+    from app.modules.assessments.models import Assignment, Submission
+    from app.modules.courses.service import CoursesService
+    from app.modules.enrollments.models import LessonProgress
+    from sqlalchemy import func
+    if user.role not in (UserRole.instructor, UserRole.admin):
+        raise HTTPException(403, "Instructors only")
+    courses = db.query(Course).filter(Course.instructor_id == user.id).all()
+    ids = [c.id for c in courses] or [0]
+    by_id = {c.id: c for c in courses}
+
+    subs = (db.query(Submission, Assignment).join(Assignment, Assignment.id == Submission.assignment_id)
+            .options(joinedload(Submission.user))
+            .filter(Assignment.course_id.in_(ids), Submission.status == "submitted")
+            .order_by(Submission.submitted_at.asc()).limit(50).all())
+    to_grade = [{"submission_id": s.id, "assignment": a.title, "student": s.user.full_name if s.user else "",
+                 "course_id": a.course_id, "course_title": by_id[a.course_id].title,
+                 "submitted_at": s.submitted_at.isoformat() + "Z"} for s, a in subs]
+
+    last = dict(db.query(LessonProgress.enrollment_id, func.max(LessonProgress.completed_at))
+                .join(Enrollment, Enrollment.id == LessonProgress.enrollment_id)
+                .filter(Enrollment.course_id.in_(ids)).group_by(LessonProgress.enrollment_id).all())
+    cutoff = utcnow() - timedelta(days=7)
+    stalled = []
+    for e in (db.query(Enrollment).options(joinedload(Enrollment.user))
+              .filter(Enrollment.course_id.in_(ids), Enrollment.status != "completed").all()):
+        seen = last.get(e.id) or e.enrolled_at
+        if seen < cutoff and e.user:
+            stalled.append({"student": e.user.full_name, "email": e.user.email, "course_id": e.course_id,
+                            "course_title": by_id[e.course_id].title, "progress": e.progress,
+                            "last_active": seen.isoformat() + "Z", "days_inactive": (utcnow() - seen).days})
+    stalled.sort(key=lambda x: -x["days_inactive"])
+
+    drafts = []
+    for c in courses:
+        if c.status.value == "draft":
+            todo = [i["label"] for i in CoursesService.readiness(c) if not i["ok"]]
+            drafts.append({"course_id": c.id, "title": c.title, "todo": todo})
+    return {"to_grade": to_grade, "stalled": stalled[:20], "stalled_total": len(stalled), "drafts": drafts}

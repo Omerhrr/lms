@@ -18,6 +18,7 @@ def list_users(
     search: str | None = Query(None),
     role: str | None = Query(None),
     instructor_requested: bool | None = Query(None),
+    sort: str = Query("newest", pattern="^(newest|oldest|name|name_desc)$"),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -36,7 +37,9 @@ def list_users(
         q = q.filter(User.role == role_enum)
     if instructor_requested is not None:
         q = q.filter(User.instructor_requested.is_(instructor_requested))
-    items, total, page, pages = paginate(q.order_by(User.created_at.desc()), page, size)
+    order = {"newest": [User.created_at.desc(), User.id.desc()], "oldest": [User.created_at.asc(), User.id.asc()],
+             "name": [User.full_name.asc()], "name_desc": [User.full_name.desc()]}[sort]
+    items, total, page, pages = paginate(q.order_by(*order), page, size)
     return {"items": [UserOut.model_validate(u).model_dump(mode="json") for u in items],
             "total": total, "page": page, "pages": pages}
 

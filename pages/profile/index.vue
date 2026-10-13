@@ -63,23 +63,23 @@ const onUpload = async (e: Event) => {
         </div>
         <label class="btn-secondary cursor-pointer text-sm">
           Upload avatar
-          <input type="file" class="hidden" accept="image/*" @change="onUpload" />
+          <input type="file" class="hidden" aria-label="Upload a profile photo" accept="image/*" @change="onUpload" />
         </label>
       </div>
 
       <div class="grid sm:grid-cols-2 gap-4">
         <div>
-          <label class="label">Full name</label>
-          <input v-model="form.full_name" class="input" />
+          <label class="label" for="profile-index-form-full_name">Full name</label>
+          <input id="profile-index-form-full_name" v-model="form.full_name" class="input" />
         </div>
         <div>
-          <label class="label">Headline</label>
-          <input v-model="form.headline" class="input" placeholder="e.g. Senior Software Engineer" />
+          <label class="label" for="profile-index-form-headline">Headline</label>
+          <input id="profile-index-form-headline" v-model="form.headline" class="input" placeholder="e.g. Senior Software Engineer" />
         </div>
       </div>
       <div class="mt-4">
-        <label class="label">Bio</label>
-        <textarea v-model="form.bio" class="input min-h-[90px]" placeholder="Tell students about yourself…" />
+        <label class="label" for="profile-index-form-bio">Bio</label>
+        <textarea id="profile-index-form-bio" v-model="form.bio" class="input min-h-[90px]" placeholder="Tell students about yourself…" />
       </div>
       <button class="btn-primary mt-5" :disabled="saving" @click="save">
         <Save class="w-4 h-4" /> {{ saving ? 'Saving…' : 'Save profile' }}
@@ -87,19 +87,19 @@ const onUpload = async (e: Event) => {
     </div>
 
     <div class="card p-6">
-      <h2 class="font-bold text-slate-800 mb-5 flex items-center gap-2"><KeyRound class="w-4.5 h-4.5 text-slate-400" /> Change password</h2>
+      <h2 class="font-bold text-slate-800 mb-5 flex items-center gap-2"><KeyRound class="w-4.5 h-4.5 text-slate-500" /> Change password</h2>
       <div class="grid sm:grid-cols-3 gap-4">
         <div>
-          <label class="label">Current</label>
-          <input v-model="pw.current_password" type="password" class="input" />
+          <label class="label" for="profile-index-pw-current_password">Current</label>
+          <input id="profile-index-pw-current_password" v-model="pw.current_password" type="password" class="input" />
         </div>
         <div>
-          <label class="label">New</label>
-          <input v-model="pw.new_password" type="password" class="input" />
+          <label class="label" for="profile-index-pw-new_password">New</label>
+          <input id="profile-index-pw-new_password" v-model="pw.new_password" type="password" class="input" />
         </div>
         <div>
-          <label class="label">Confirm new</label>
-          <input v-model="pw.confirm" type="password" class="input" />
+          <label class="label" for="profile-index-pw-confirm">Confirm new</label>
+          <input id="profile-index-pw-confirm" v-model="pw.confirm" type="password" class="input" />
         </div>
       </div>
       <button class="btn-secondary mt-5" :disabled="savingPw" @click="changePw">{{ savingPw ? 'Updating…' : 'Update password' }}</button>

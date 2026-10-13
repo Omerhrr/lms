@@ -83,11 +83,16 @@ class CoursesService:
             language=data.language,
             thumbnail_url=safe_url(data.thumbnail_url, "thumbnail_url"),
             tags=[str(t)[:50] for t in data.tags][:20],
+            outcomes=CoursesService._clean_outcomes(data.outcomes),
         )
         db.add(course)
         db.commit()
         db.refresh(course)
         return course
+
+    @staticmethod
+    def _clean_outcomes(items) -> list[str]:
+        return [str(o).strip()[:200] for o in (items or []) if str(o).strip()][:12]
 
     @staticmethod
     def _check_category(db: Session, category_id) -> None:
@@ -108,11 +113,13 @@ class CoursesService:
             payload["thumbnail_url"] = safe_url(payload["thumbnail_url"], "thumbnail_url")
         if payload.get("tags") is not None:
             payload["tags"] = [str(t)[:50] for t in payload["tags"]][:20]
+        if "outcomes" in payload:
+            payload["outcomes"] = CoursesService._clean_outcomes(payload["outcomes"])
         if "title" in payload and payload["title"]:
             course.title = payload["title"].strip()
             course.slug = unique_slug(db, Course, course.title, exclude_id=course.id)
         for field in ("summary", "description", "category_id", "price", "level", "language",
-                      "thumbnail_url", "tags", "is_featured"):
+                      "thumbnail_url", "tags", "outcomes", "is_featured"):
             if field in payload:
                 setattr(course, field, payload[field])
         course.updated_at = utcnow()
@@ -236,6 +243,10 @@ class CoursesService:
             ),
         }
         if detail:
+            data["outcomes"] = course.outcomes or []
+            if course.instructor:
+                data["instructor"]["bio"] = course.instructor.bio
+            data["preview"] = None
             sections = []
             for s in sorted(course.sections, key=lambda x: x.position):
                 sections.append({
@@ -248,7 +259,30 @@ class CoursesService:
                     ],
                 })
             data["sections"] = sections
+            # first free-preview video, shown as the trailer on the course page
+            for sec in sorted(course.sections, key=lambda x: x.position):
+                for l in sorted(sec.lessons, key=lambda x: x.position):
+                    if l.is_preview and l.type == LessonType.video and l.video_url and data["preview"] is None:
+                        data["preview"] = {"lesson_id": l.id, "title": l.title, "video_url": l.video_url}
         return data
+
+    # ---------- publishing ----------
+
+    @staticmethod
+    def readiness(course: Course) -> list[dict]:
+        """Checklist shown before publishing. `required` items block publishing."""
+        import re
+        lessons = [l for s in course.sections for l in s.lessons]
+        text = re.sub(r"<[^>]+>", " ", course.description or "")
+        return [
+            {"key": "lessons", "label": "At least one lesson", "ok": bool(lessons), "required": True},
+            {"key": "summary", "label": "A one-line summary for course cards", "ok": len((course.summary or "").strip()) >= 20, "required": False},
+            {"key": "description", "label": "A description of the course (80+ characters)", "ok": len(text.strip()) >= 80, "required": False},
+            {"key": "outcomes", "label": "At least 3 learning outcomes", "ok": len(course.outcomes or []) >= 3, "required": False},
+            {"key": "category", "label": "A category", "ok": course.category_id is not None, "required": False},
+            {"key": "thumbnail", "label": "A thumbnail image", "ok": bool(course.thumbnail_url), "required": False},
+            {"key": "preview", "label": "A free preview lesson", "ok": any(l.is_preview for l in lessons), "required": False},
+        ]
 
     # ---------- listings ----------
 
@@ -346,6 +380,7 @@ class CoursesService:
                  "file_url": l.file_url, "content": sanitize_rich_content(l.content), "drip_days": l.drip_days}
                 for l in sorted(section.lessons, key=lambda x: x.position)
             ]
+        data["readiness"] = CoursesService.readiness(course)
         data["prerequisite_ids"] = [p.prerequisite_id for p in
                                     db.query(CoursePrerequisite).filter_by(course_id=course.id)]
         return data

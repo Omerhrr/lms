@@ -91,7 +91,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
         <template v-if="auth.isLoggedIn.value && auth.user.value">
           <NuxtLink to="/notifications" class="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition" aria-label="Notifications">
             <Bell class="w-5 h-5" />
-            <span v-if="unread > 0" class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+            <span v-if="unread > 0" class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center">
               {{ unread > 99 ? '99+' : unread }}
             </span>
           </NuxtLink>

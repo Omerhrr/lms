@@ -32,7 +32,7 @@ const badge: Record<string, string> = {
         <div class="min-w-0 flex-1">
           <NuxtLink v-if="p.course_slug" :to="`/courses/${p.course_slug}`" class="font-semibold text-slate-800 hover:text-brand-700 truncate block">{{ p.course_title }}</NuxtLink>
           <p v-else class="font-semibold text-slate-800 truncate">{{ p.course_title }}</p>
-          <p class="text-xs text-slate-400 truncate">{{ when(p.created_at) }} · <span class="font-mono">{{ p.reference }}</span></p>
+          <p class="text-xs text-slate-500 truncate">{{ when(p.created_at) }} · <span class="font-mono">{{ p.reference }}</span></p>
         </div>
         <span class="font-bold text-slate-900">{{ p.amount_display }}</span>
         <span class="badge capitalize" :class="badge[p.status] || badge.abandoned">{{ p.status }}</span>

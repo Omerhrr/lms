@@ -1,10 +1,11 @@
 <script setup lang="ts">
 useSeoMeta({ title: 'Terms & Conditions - Infohive Technology Ltd.' })
 const { config } = usePlatform()
+const { content: site } = useSiteContent()
 </script>
 
 <template>
-  <LegalPage title="Terms & Conditions" updated="October 2026">
+  <LegalPage title="Terms & Conditions" updated="October 2026" :html="site?.legal.terms_html" :custom-updated="site?.legal.updated">
     <p>These terms govern your use of the Infohive Technology Ltd. website and Learning Management System. By creating an account or using our services you agree to them.</p>
     <h2>Accounts</h2>
     <p>Keep your login details confidential and provide accurate information. You are responsible for activity on your account. We may suspend accounts that misuse the platform.</p>

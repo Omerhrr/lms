@@ -10,6 +10,6 @@ defineProps<{ empty?: boolean }>()
       </svg>
     </div>
     <h3 class="font-semibold text-slate-700">Nothing here yet</h3>
-    <p class="text-sm text-slate-400 mt-1"><slot /></p>
+    <p class="text-sm text-slate-500 mt-1"><slot /></p>
   </div>
 </template>

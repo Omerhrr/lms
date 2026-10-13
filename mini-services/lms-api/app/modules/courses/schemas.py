@@ -32,6 +32,7 @@ class CourseCreateIn(BaseModel):
     language: str = "English"
     thumbnail_url: Optional[str] = None
     tags: list[str] = []
+    outcomes: list[str] = []
 
 
 class CourseUpdateIn(BaseModel):
@@ -44,6 +45,7 @@ class CourseUpdateIn(BaseModel):
     language: Optional[str] = None
     thumbnail_url: Optional[str] = None
     tags: Optional[list[str]] = None
+    outcomes: Optional[list[str]] = None
     is_featured: Optional[bool] = None
 
 

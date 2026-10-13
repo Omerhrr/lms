@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   ChevronLeft, ChevronRight, CheckCircle2, Circle, PlayCircle, FileText,
-  FileDown, BarChart3, ArrowLeft, Award, X, Menu, Lock, Bookmark, NotebookPen, ChevronDown
+  FileDown, BarChart3, ArrowLeft, Award, X, Menu, Lock, Bookmark, NotebookPen, ChevronDown, Trophy
 } from 'lucide-vue-next'
 
 // full-screen player: no site header/footer around it
@@ -67,7 +67,7 @@ const unlockLabel = (iso: string) =>
 const note = ref('')
 const noteSavedAt = ref<string | null>(null)
 const noteState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
-const notesOpen = ref(true)
+const notesOpen = ref(false)  // one line by default; opens when the lesson already has a note
 const bookmarked = ref(false)
 let noteTimer: ReturnType<typeof setTimeout> | undefined
 let loadingNote = false
@@ -80,6 +80,7 @@ const loadNote = async (lessonId: number) => {
   try {
     const res = await api.get<any>(`/lessons/${lessonId}/note`, undefined, true)
     note.value = res.body
+    if (res.body) notesOpen.value = true
     noteSavedAt.value = res.updated_at
     bookmarked.value = res.bookmarked
   } catch { /* notes unavailable (e.g. preview without enrollment) */ }
@@ -140,6 +141,17 @@ const nextLesson = computed(() => (idx.value < flatLessons.value.length - 1 ? fl
 
 const isDone = (id: number) => completedIds.value.has(id)
 
+// shown after a lesson is completed: next lesson, finished section, or finished course
+const celebrate = ref<null | { kind: 'lesson' | 'section' | 'course'; section?: string }>(null)
+const sectionOf = (id: number) => course.value?.sections.find((s: any) => s.lessons.some((l: any) => l.id === id))
+const afterComplete = (lessonId: number, status?: string) => {
+  if (status === 'completed') { celebrate.value = { kind: 'course' }; return }
+  const sec = sectionOf(lessonId)
+  if (sec && sec.lessons.every((l: any) => completedIds.value.has(l.id))) celebrate.value = { kind: 'section', section: sec.title }
+  else celebrate.value = { kind: 'lesson' }
+}
+watch(currentLesson, () => { celebrate.value = null })
+
 const toggleComplete = async () => {
   if (!currentLesson.value || course.value?.can_manage) return
   const done = isDone(currentLesson.value.id)
@@ -151,7 +163,8 @@ const toggleComplete = async () => {
     else completedIds.value.add(currentLesson.value.id)
     completedIds.value = new Set(completedIds.value)
     enrollment.value.progress = res.progress
-    if (!done) show(`Progress: ${res.progress}%${res.status === 'completed' ? ' - course completed! 🎓' : ''}`)
+    if (!done) afterComplete(currentLesson.value.id, res.status)
+    else celebrate.value = null
   } catch { /* toast shown */ }
 }
 
@@ -166,6 +179,7 @@ const onQuizPassed = async () => {
       const res = await api.post(`/enrollments/${course.value.id}/lessons/${currentLesson.value.id}/complete`)
       completedIds.value = new Set([...completedIds.value, currentLesson.value.id])
       enrollment.value.progress = res.progress
+      afterComplete(currentLesson.value.id, res.status)
     } catch { /* ignore */ }
   }
 }
@@ -180,7 +194,6 @@ const lessonIcon = (l: any) =>
     : l.type === 'video' ? PlayCircle : l.type === 'quiz' ? BarChart3 : l.type === 'file' ? FileDown : FileText
 
 onMounted(() => {
-  if (window.matchMedia('(max-width: 639px)').matches) notesOpen.value = false
   loadCourse()
 })
 onBeforeUnmount(flushNote)
@@ -197,7 +210,9 @@ onBeforeUnmount(flushNote)
           <ArrowLeft class="w-4 h-4" /> <span class="hidden md:inline">Back to course</span>
         </NuxtLink>
         <span class="text-slate-600 hidden md:block">/</span>
-        <span class="font-semibold truncate text-sm sm:text-base">{{ course?.title }}</span>
+        <span class="font-semibold truncate text-sm sm:text-base hidden sm:block">{{ course?.title }}</span>
+        <!-- phones: where you are, not a clipped course title -->
+        <span class="font-semibold text-sm sm:hidden whitespace-nowrap">Lesson {{ idx + 1 }} of {{ flatLessons.length }}</span>
       </div>
       <div v-if="!course?.can_manage" class="flex items-center gap-2 shrink-0">
         <div class="w-16 sm:w-28 h-2 rounded-full bg-slate-800 overflow-hidden">
@@ -218,8 +233,8 @@ onBeforeUnmount(flushNote)
         <div class="p-3 sm:p-4">
           <div v-for="s in course?.sections || []" :key="s.id" class="mb-5">
             <div class="flex items-center justify-between mb-2 px-1">
-              <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 leading-tight pr-2">{{ s.title }}</h3>
-              <span class="text-[10px] text-slate-500 shrink-0">{{ sectionProgress(s) }}</span>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 leading-tight pr-2">{{ s.title }}</h3>
+              <span class="text-xs text-slate-500 shrink-0">{{ sectionProgress(s) }}</span>
             </div>
             <button v-for="l in s.lessons" :key="l.id" @click="currentLesson = l; sidebarOpen = false"
               class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm transition"
@@ -227,7 +242,7 @@ onBeforeUnmount(flushNote)
               <component :is="lessonIcon(l)" class="w-4.5 h-4.5 shrink-0"
                 :class="isDone(l.id) ? 'text-brand-400' : isLocked(l) ? 'text-amber-400/80' : l.id === currentLesson?.id ? 'text-brand-300' : 'text-slate-500'" />
               <span class="flex-1 leading-snug" :class="isLocked(l) && 'text-slate-500'">{{ l.title }}</span>
-              <span class="text-[10px] text-slate-500 shrink-0">{{ isLocked(l) ? 'soon' : `${l.duration_minutes}m` }}</span>
+              <span class="text-xs text-slate-500 shrink-0">{{ isLocked(l) ? 'soon' : fmtMinutes(l.duration_minutes) }}</span>
             </button>
           </div>
         </div>
@@ -242,7 +257,7 @@ onBeforeUnmount(flushNote)
             <div class="max-w-4xl mx-auto">
               <div class="flex items-center gap-2 text-xs text-slate-500 mb-2">
                 <span class="badge bg-slate-800 text-slate-300 border border-slate-700 capitalize">{{ currentLesson.type }}</span>
-                <span>{{ currentLesson.duration_minutes }} min</span>
+                <span>{{ fmtMinutes(currentLesson.duration_minutes) }}</span>
                 <span class="hidden sm:inline">· Lesson {{ idx + 1 }} of {{ flatLessons.length }}</span>
               </div>
               <div class="flex items-start justify-between gap-3 mb-5 sm:mb-6">
@@ -295,12 +310,32 @@ onBeforeUnmount(flushNote)
                 </div>
               </template>
 
+              <!-- next up / celebration -->
+              <div v-if="celebrate" class="mt-6 rounded-xl border p-4 sm:p-5 flex flex-wrap items-center gap-4"
+                :class="celebrate.kind === 'course' ? 'border-amber-400/40 bg-amber-400/10' : 'border-brand-500/30 bg-brand-500/10'" role="status">
+                <component :is="celebrate.kind === 'course' ? Trophy : CheckCircle2" class="w-7 h-7 shrink-0" :class="celebrate.kind === 'course' ? 'text-amber-300' : 'text-brand-300'" />
+                <div class="flex-1 min-w-0">
+                  <p class="font-bold text-white">
+                    {{ celebrate.kind === 'course' ? 'You finished the course! 🎓' : celebrate.kind === 'section' ? `Section complete: ${celebrate.section}` : 'Lesson complete' }}
+                  </p>
+                  <p class="text-sm text-slate-300 truncate">
+                    <template v-if="celebrate.kind === 'course'">Your certificate is ready.</template>
+                    <template v-else-if="nextLesson">Next up: {{ nextLesson.title }}</template>
+                    <template v-else>{{ Math.round(enrollment?.progress || 0) }}% of the course complete</template>
+                  </p>
+                </div>
+                <NuxtLink v-if="celebrate.kind === 'course'" to="/certificates" class="btn bg-amber-400 text-amber-950 hover:bg-amber-300 font-bold">View certificate</NuxtLink>
+                <button v-else-if="nextLesson" class="btn bg-brand-500 text-white hover:bg-brand-400 font-semibold" @click="currentLesson = nextLesson">
+                  Continue <ChevronRight class="w-4 h-4" />
+                </button>
+              </div>
+
               <!-- my notes -->
               <section v-if="!isLocked(currentLesson)" class="mt-6 rounded-xl border border-slate-800 bg-slate-900/70">
                 <button type="button" class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left" @click="notesOpen = !notesOpen" :aria-expanded="notesOpen">
                   <span class="flex items-center gap-2 font-semibold text-slate-200"><NotebookPen class="w-4.5 h-4.5 text-brand-400" /> My notes</span>
                   <span class="flex items-center gap-3">
-                    <span class="text-[11px] text-slate-500">
+                    <span class="text-xs text-slate-500">
                       {{ noteState === 'saving' ? 'Saving…' : noteState === 'error' ? 'Not saved - retrying on next edit' : noteState === 'saved' ? 'Saved' : note ? 'Private to you' : '' }}
                     </span>
                     <ChevronDown class="w-4 h-4 text-slate-500 transition" :class="notesOpen && 'rotate-180'" />

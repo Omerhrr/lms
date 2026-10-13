@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { Star, StarHalf } from 'lucide-vue-next'
 
-const props = defineProps<{ rating: number; size?: string }>()
-const full = computed(() => Math.floor(props.rating))
-const hasHalf = computed(() => props.rating - full.value >= 0.5)
+/** Read-only star rating. `size` is a Tailwind size class for each star (default w-4 h-4). */
+const props = withDefaults(defineProps<{ rating: number; size?: string }>(), { size: 'w-4 h-4' })
+const full = computed(() => Math.min(5, Math.floor(props.rating || 0)))
+const hasHalf = computed(() => full.value < 5 && (props.rating || 0) - full.value >= 0.5)
+const empty = computed(() => 5 - full.value - (hasHalf.value ? 1 : 0))
 </script>
 
 <template>
-  <div class="flex items-center gap-0.5" :class="size || 'w-4 h-4'">
-    <Star v-for="i in full" :key="'f' + i" class="w-4 h-4 fill-amber-400 text-amber-400" :class="size || ''" />
-    <StarHalf v-if="hasHalf" class="w-4 h-4 fill-amber-400 text-amber-400" :class="size || ''" />
-    <Star v-for="i in (5 - full - (hasHalf ? 1 : 0))" :key="'e' + i" class="w-4 h-4 text-slate-300" :class="size || ''" />
-  </div>
+  <span class="inline-flex items-center gap-0.5 shrink-0" role="img" :aria-label="`Rated ${rating} out of 5`">
+    <Star v-for="i in full" :key="'f' + i" :class="size" class="fill-amber-400 text-amber-400" aria-hidden="true" />
+    <span v-if="hasHalf" class="relative inline-flex" :class="size" aria-hidden="true">
+      <Star :class="size" class="text-slate-300 absolute inset-0" />
+      <StarHalf :class="size" class="fill-amber-400 text-amber-400 relative" />
+    </span>
+    <Star v-for="i in empty" :key="'e' + i" :class="size" class="text-slate-300" aria-hidden="true" />
+  </span>
 </template>

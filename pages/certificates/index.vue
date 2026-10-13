@@ -32,9 +32,10 @@ onMounted(async () => {
           <p class="text-xs text-slate-500 mt-0.5">
             Issued {{ new Date(c.issued_at).toLocaleDateString() }} · Serial <span class="font-mono">{{ c.serial }}</span>
           </p>
+          <p v-if="c.revoked" class="text-xs font-semibold text-rose-700 mt-1">Revoked{{ c.revoke_reason ? `: ${c.revoke_reason}` : '' }}</p>
         </div>
         <div class="flex gap-2 shrink-0 w-full sm:w-auto">
-          <a :href="`/api/certificates/${c.serial}/pdf`" download class="btn-primary text-sm flex-1 sm:flex-none" aria-label="Download PDF">
+          <a v-if="!c.revoked" :href="`/api/certificates/${c.serial}/pdf`" download class="btn-primary text-sm flex-1 sm:flex-none" aria-label="Download PDF">
             <Download class="w-3.5 h-3.5" /> PDF
           </a>
           <NuxtLink :to="`/certificates/${c.serial}`" class="btn-secondary text-sm flex-1 sm:flex-none">

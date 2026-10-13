@@ -71,7 +71,9 @@ def main():
         m_auth.User(email="emma@example.com", password_hash=hash_password("Study123!"),
                     full_name="Emma Wilson", role=m_auth.UserRole.student),
         m_auth.User(email="liam@example.com", password_hash=hash_password("Study123!"),
-                    full_name="Liam Garcia", role=m_auth.UserRole.student),
+                    full_name="Liam Garcia", role=m_auth.UserRole.student, instructor_requested=True,
+                    headline="Data analyst · 6 years in fintech",
+                    bio="I run Excel and Power BI workshops for finance teams and would love to publish a course on practical data analysis."),
         m_auth.User(email="olivia@example.com", password_hash=hash_password("Study123!"),
                     full_name="Olivia Martinez", role=m_auth.UserRole.student),
         m_auth.User(email="noah@example.com", password_hash=hash_password("Study123!"),
@@ -98,6 +100,7 @@ def main():
     c1 = m_course.Course(
         title="Python Programming: Zero to Hero",
         slug="python-programming-zero-to-hero",
+        outcomes=['Write clean, working Python from scratch', 'Use variables, conditions, loops and functions with confidence', 'Organise code into reusable modules', 'Handle files and errors like a professional', 'Build and ship a complete capstone project'],
         summary="Master Python from the very basics to building real applications - no prior experience needed.",
         description=(
             "<h2>Why this course?</h2>"
@@ -129,9 +132,9 @@ def main():
     l2 = m_course.Lesson(section_id=s1.id, course_id=c1.id, title="Installing Python & Your Editor", type=m_course.LessonType.video,
                          video_url="https://www.youtube.com/embed/rfscVS0vtbw", duration_minutes=9, is_preview=True, position=1)
     l3 = m_course.Lesson(section_id=s2.id, course_id=c1.id, title="Variables & Data Types", type=m_course.LessonType.text,
-                         content="Variables are containers for storing data values.\n\n## Core data types\n- int - whole numbers (42)\n- float - decimals (3.14)\n- str - text (\"hello\")\n- bool - True / False\n\nPython is dynamically typed, so you never declare a type explicitly - the interpreter figures it out.\n\nname = \"Ada\"\nage = 36\npi = 3.14159", duration_minutes=12, position=0)
+                         content="Variables are containers for storing data values.\n\n## Core data types\n- int - whole numbers (42)\n- float - decimals (3.14)\n- str - text (\"hello\")\n- bool - True / False\n\nPython is dynamically typed, so you never declare a type explicitly - the interpreter figures it out.\n\n```\nname = \"Ada\"\nage = 36\npi = 3.14159\n```", duration_minutes=12, position=0)
     l4 = m_course.Lesson(section_id=s2.id, course_id=c1.id, title="Control Flow: If, Elif, Else", type=m_course.LessonType.text,
-                         content="Programs make decisions using conditional statements.\n\nscore = 85\nif score >= 90:\n    print(\"A\")\nelif score >= 80:\n    print(\"B\")\nelse:\n    print(\"Keep practicing!\")\n\nIndentation matters in Python - it defines code blocks.", duration_minutes=11, position=1)
+                         content="Programs make decisions using conditional statements.\n\n```\nscore = 85\nif score >= 90:\n    print(\"A\")\nelif score >= 80:\n    print(\"B\")\nelse:\n    print(\"Keep practicing!\")\n```\n\nIndentation matters in Python - it defines code blocks.", duration_minutes=11, position=1)
     l5 = m_course.Lesson(section_id=s2.id, course_id=c1.id, title="Fundamentals Check-up", type=m_course.LessonType.quiz,
                          duration_minutes=10, position=2)
     l6 = m_course.Lesson(section_id=s3.id, course_id=c1.id, title="Functions & Reusable Code", type=m_course.LessonType.video,
@@ -169,6 +172,7 @@ def main():
     c2 = m_course.Course(
         title="Digital Marketing Masterclass 2026",
         slug="digital-marketing-masterclass-2026",
+        outcomes=['Define your ideal customer and positioning', 'Plan content that ranks on search engines', 'Run profitable social and paid campaigns', 'Build email funnels that convert', 'Measure what works with simple analytics'],
         summary="Grow any business with proven digital marketing systems: SEO, social media, email funnels and paid ads.",
         description=(
             "<h2>Marketing that actually converts</h2>"
@@ -210,6 +214,7 @@ def main():
     c3 = m_course.Course(
         title="UI/UX Design Fundamentals",
         slug="ui-ux-design-fundamentals",
+        outcomes=['Apply the core principles of usable design', 'Create layouts with clear visual hierarchy', 'Choose colour and typography with intent', 'Run quick user tests and act on feedback'],
         summary="Learn the core principles of beautiful, usable interfaces: layout, typography, color and user research.",
         description=(
             "<h2>Design for humans</h2>"
@@ -245,6 +250,7 @@ def main():
     c4 = m_course.Course(
         title="Data Analysis with Spreadsheets",
         slug="data-analysis-with-spreadsheets",
+        outcomes=['Clean and structure messy data', 'Use lookup and summary formulas', 'Build pivot tables and charts', 'Present insights clearly'],
         summary="Turn raw data into decisions using spreadsheets: cleaning, pivot tables, charts and dashboards.",
         description="<h2>Coming soon</h2><p>This hands-on course is being prepared. Watch this space!</p>",
         category_id=cats["Data Science"].id, instructor_id=james.id,

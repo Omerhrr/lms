@@ -52,6 +52,8 @@ class Course(Base):
     language: Mapped[str] = mapped_column(String(50), default="English")
     thumbnail_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     tags: Mapped[list] = mapped_column(JSON, default=list)
+    # "What you'll learn" bullet points shown at the top of the course page
+    outcomes: Mapped[list | None] = mapped_column(JSON, nullable=True)
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[object] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[object] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

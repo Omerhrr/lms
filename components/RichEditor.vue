@@ -18,18 +18,26 @@ const { show } = useToast()
 const legacyToHtml = (text: string) => {
   if (!text || /<\w+[^>]*>/.test(text)) return text || ''
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const inl = (s: string) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>')
   const out: string[] = []
   let list: string[] = []
-  const flush = () => { if (list.length) out.push(`<ul>${list.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`); list = [] }
-  for (const raw of text.split('\n')) {
+  let code: string[] | null = null
+  const flush = () => { if (list.length) out.push(`<ul>${list.map(i => `<li>${inl(i)}</li>`).join('')}</ul>`); list = [] }
+  for (const raw of text.replace(/\r\n/g, '\n').split('\n')) {
+    if (raw.trim().startsWith('```')) {
+      if (code) { out.push(`<pre><code>${esc(code.join('\n'))}</code></pre>`); code = null } else { flush(); code = [] }
+      continue
+    }
+    if (code) { code.push(raw); continue }
     const line = raw.trim()
     if (!line) { flush(); continue }
     if (line.startsWith('- ')) { list.push(line.slice(2)); continue }
     flush()
-    if (line.startsWith('## ')) out.push(`<h3>${esc(line.slice(3))}</h3>`)
-    else if (line.startsWith('# ')) out.push(`<h2>${esc(line.slice(2))}</h2>`)
-    else out.push(`<p>${esc(line)}</p>`)
+    if (line.startsWith('## ')) out.push(`<h3>${inl(line.slice(3))}</h3>`)
+    else if (line.startsWith('# ')) out.push(`<h2>${inl(line.slice(2))}</h2>`)
+    else out.push(`<p>${inl(line)}</p>`)
   }
+  if (code) out.push(`<pre><code>${esc(code.join('\n'))}</code></pre>`)
   flush()
   return out.join('')
 }

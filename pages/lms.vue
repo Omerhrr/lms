@@ -32,7 +32,7 @@ const why = [
   <div>
     <PageHero eyebrow="Infohive LMS" title="Learn. Develop. Grow."
       lead="Welcome to the Infohive Learning Management System - your gateway to flexible, accessible, and practical online learning.">
-      <NuxtLink to="/courses" class="btn bg-white text-slate-900 hover:bg-slate-100 px-6 py-3 font-bold">Explore Courses <ArrowRight class="w-4 h-4" /></NuxtLink>
+      <NuxtLink to="/courses" class="btn btn-light px-6 py-3 font-bold">Explore Courses <ArrowRight class="w-4 h-4" /></NuxtLink>
       <NuxtLink v-if="!auth.isLoggedIn.value" to="/login" class="btn border border-white/30 text-white hover:bg-white/10 px-6 py-3 font-bold">Login to LMS</NuxtLink>
       <NuxtLink v-else :to="auth.homeFor(auth.user.value)" class="btn border border-white/30 text-white hover:bg-white/10 px-6 py-3 font-bold">My Learning</NuxtLink>
     </PageHero>
@@ -74,6 +74,8 @@ const why = [
         <CourseCard v-for="c in featured" :key="c.id" :course="c" />
       </div>
     </section>
+
+    <ReviewsStrip />
 
     <section class="bg-slate-50 border-y border-slate-100">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 py-14 grid md:grid-cols-3 gap-5">

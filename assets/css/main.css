@@ -110,6 +110,12 @@ html.dark { color-scheme: dark; }
   html.dark .text-emerald-700 { color: #6ee7b7; }
   html.dark .text-emerald-600 { color: #34d399; }
   html.dark .text-violet-600 { color: #a78bfa; }
+  html.dark .text-violet-700 { color: #c4b5fd; }
+  html.dark .bg-violet-50 { background-color: rgba(124, 58, 237, .18); }
+  html.dark .text-sky-700 { color: #7dd3fc; }
+  html.dark .hover\:bg-brand-100:hover { background-color: rgba(4, 120, 87, .4); }
+  html.dark .bg-amber-100 { background-color: rgba(180, 83, 9, .24); }
+  html.dark .text-amber-800 { color: #fcd34d; }
   html.dark .border-rose-200 { border-color: rgba(244, 63, 94, .3); }
 
   /* focus rings: dark offset so ring halos don't glow white */
@@ -133,3 +139,28 @@ html.dark { color-scheme: dark; }
 .lesson-dark .rich-text blockquote { color: #cbd5e1; }
 .lesson-dark .rich-text a { color: #34d399; }
 .rich-text img { max-width: 100%; height: auto; }
+
+/* keyboard focus: one consistent, visible outline everywhere (mouse clicks don't show it) */
+a:focus-visible, button:focus-visible, summary:focus-visible, [role="button"]:focus-visible, [tabindex]:focus-visible,
+input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible {
+  outline: 2px solid #10b981; outline-offset: 2px; border-radius: 0.375rem;
+}
+.lesson-dark a:focus-visible, .lesson-dark button:focus-visible { outline-color: #34d399; }
+
+/* white buttons on dark or brand surfaces stay white in both themes */
+html .btn-light, html.dark .btn-light { background-color: #fff; color: #0f172a; }
+html .btn-light:hover, html.dark .btn-light:hover { background-color: #f1f5f9; }
+/* outlined buttons on dark or brand surfaces */
+html .btn-outline-light, html.dark .btn-outline-light { border: 1px solid rgba(255, 255, 255, .55); color: #fff; background: transparent; }
+html .btn-outline-light:hover, html.dark .btn-outline-light:hover { background-color: rgba(255, 255, 255, .1); }
+
+/* phone swipe rows: cards scroll sideways on small screens, grid from sm: up */
+.swipe-row { display: flex; gap: 0.75rem; overflow-x: auto; scroll-snap-type: x mandatory; margin-inline: -1rem; padding: 0.25rem 1rem 0.75rem; scrollbar-width: none; }
+.swipe-row::-webkit-scrollbar { display: none; }
+.swipe-row > * { flex: 0 0 78%; scroll-snap-align: start; }
+@media (min-width: 640px) {
+  .swipe-row { display: grid; overflow: visible; margin-inline: 0; padding: 0; gap: 1rem; }
+  .swipe-row > * { flex: none; }
+}
+/* small labels sitting on images or covers keep dark-on-white in both themes */
+html .chip-light, html.dark .chip-light { background-color: rgba(255, 255, 255, .92); color: #334155; }

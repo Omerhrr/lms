@@ -71,7 +71,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 's
         <div class="flex-1 min-w-0">
           <h4 class="font-bold text-slate-800">{{ a.title }}</h4>
           <p class="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{{ a.body }}</p>
-          <p class="text-xs text-slate-400 mt-2">{{ fmt(a.created_at) }}</p>
+          <p class="text-xs text-slate-500 mt-2">{{ fmt(a.created_at) }}</p>
         </div>
         <button class="p-1.5 rounded-lg hover:bg-rose-50 text-rose-400 h-fit shrink-0" @click="remove(a.id)" aria-label="Delete">
           <Trash2 class="w-4 h-4" />

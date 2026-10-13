@@ -64,9 +64,9 @@ const remove = async (c: any) => {
         </div>
         <div class="flex-1 min-w-0">
           <h3 class="font-bold text-slate-800">{{ c.name }}</h3>
-          <p class="text-xs text-slate-400 truncate">{{ c.description || c.slug }}</p>
+          <p class="text-xs text-slate-500 truncate">{{ c.description || c.slug }}</p>
         </div>
-        <button class="p-2 rounded-lg hover:bg-slate-100 text-slate-400" @click="modal = { open: true, editing: c, name: c.name, description: c.description || '' }">
+        <button class="p-2 rounded-lg hover:bg-slate-100 text-slate-500" @click="modal = { open: true, editing: c, name: c.name, description: c.description || '' }">
           <Pencil class="w-4 h-4" />
         </button>
         <button class="p-2 rounded-lg hover:bg-rose-50 text-rose-400" @click="remove(c)">
@@ -78,12 +78,12 @@ const remove = async (c: any) => {
     <Modal :open="modal.open" :title="modal.editing ? 'Edit category' : 'New category'" @close="modal = { open: false, name: '', description: '' }">
       <div class="space-y-3">
         <div>
-          <label class="label">Name</label>
-          <input v-model="modal.name" class="input" placeholder="e.g. Photography" @keyup.enter="save" />
+          <label class="label" for="admin-categories-modal-name">Name</label>
+          <input id="admin-categories-modal-name" v-model="modal.name" class="input" placeholder="e.g. Photography" @keyup.enter="save" />
         </div>
         <div>
-          <label class="label">Description</label>
-          <input v-model="modal.description" class="input" placeholder="Optional" />
+          <label class="label" for="admin-categories-modal-description">Description</label>
+          <input id="admin-categories-modal-description" v-model="modal.description" class="input" placeholder="Optional" />
         </div>
       </div>
       <template #footer>

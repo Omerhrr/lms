@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { UserPlus, GraduationCap, Briefcase } from 'lucide-vue-next'
+import { UserPlus, Briefcase } from 'lucide-vue-next'
 
 useSeoMeta({ title: 'Create account - Infohive' })
 definePageMeta({ middleware: 'guest' })
@@ -46,44 +46,39 @@ const submit = async () => {
           <UserPlus class="w-7 h-7 text-brand-600" />
         </div>
         <h1 class="text-2xl font-extrabold text-slate-900">Create your account</h1>
-        <p class="text-slate-500 text-sm mt-1">Join thousands of learners and instructors</p>
+        <p class="text-slate-500 text-sm mt-1">Start learning in minutes</p>
       </div>
 
-      <div class="card p-2 grid grid-cols-2 gap-2 mb-5">
-        <button @click="role = 'student'" class="flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition"
-          :class="role === 'student' ? 'bg-brand-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'">
-          <GraduationCap class="w-4.5 h-4.5" /> I'm a student
-        </button>
-        <button @click="role = 'instructor'" class="flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition"
-          :class="role === 'instructor' ? 'bg-brand-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'">
-          <Briefcase class="w-4.5 h-4.5" /> I want to teach
-        </button>
+      <div v-if="role === 'instructor'" class="rounded-xl bg-brand-50 border border-brand-100 px-4 py-3 mb-5 text-xs text-brand-800 flex gap-2">
+        <Briefcase class="w-4 h-4 shrink-0 mt-0.5" />
+        <span>You're applying to teach. You'll get a learner account right away and teaching access once an admin approves you.</span>
       </div>
-      <p v-if="role === 'instructor'" class="text-xs text-slate-500 text-center -mt-3 mb-4">
-        Instructor accounts are approved by an admin. You'll get a student account right away and teaching access once approved.
-      </p>
 
       <form @submit.prevent="submit" class="space-y-4">
         <div>
-          <label class="label">Full name</label>
-          <input v-model="form.full_name" type="text" class="input" placeholder="Ada Lovelace" />
+          <label class="label" for="r-full_name">Full name</label>
+          <input id="r-full_name" v-model="form.full_name" autocomplete="name" type="text" class="input" placeholder="Ada Lovelace" />
         </div>
         <div>
-          <label class="label">Email</label>
-          <input v-model="form.email" type="email" class="input" placeholder="you@example.com" />
+          <label class="label" for="r-email">Email</label>
+          <input id="r-email" v-model="form.email" autocomplete="email" type="email" class="input" placeholder="you@example.com" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="label">Password</label>
-            <input v-model="form.password" type="password" class="input" placeholder="8+ characters" />
+            <label class="label" for="r-password">Password</label>
+            <input id="r-password" v-model="form.password" autocomplete="new-password" type="password" class="input" placeholder="8+ characters" />
           </div>
           <div>
-            <label class="label">Confirm</label>
-            <input v-model="form.confirm" type="password" class="input" placeholder="Repeat password" />
+            <label class="label" for="r-confirm">Confirm password</label>
+            <input id="r-confirm" v-model="form.confirm" autocomplete="new-password" type="password" class="input" placeholder="Repeat password" />
           </div>
         </div>
+        <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+          <input type="checkbox" class="rounded border-slate-300 text-brand-600" :checked="role === 'instructor'" @change="role = ($event.target as HTMLInputElement).checked ? 'instructor' : 'student'" />
+          I also want to teach on Infohive
+        </label>
         <button type="submit" class="btn-primary w-full py-3" :disabled="loading">
-          {{ loading ? 'Creating account…' : (role === 'instructor' ? 'Sign up & request instructor access' : 'Sign up as student') }}
+          {{ loading ? 'Creating account…' : (role === 'instructor' ? 'Sign up & request instructor access' : 'Create account') }}
         </button>
         <p class="text-center text-sm text-slate-500">
           Already have an account? <NuxtLink to="/login" class="text-brand-700 font-semibold hover:underline">Sign in</NuxtLink>

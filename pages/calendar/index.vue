@@ -39,6 +39,26 @@ const load = async () => {
 watch(cursor, load)
 onMounted(load)
 
+// when the visible month is empty, look ahead so the page still says what's next
+const nextUp = ref<any | null>(null)
+const nextChecked = ref(false)
+const monthEmpty = computed(() => !loading.value && !events.value.some(e => (toLocal(e.date).getMonth() === cursor.value.getMonth() && toLocal(e.date).getFullYear() === cursor.value.getFullYear())))
+watch(monthEmpty, async (empty) => {
+  if (!empty || nextChecked.value) return
+  nextChecked.value = true
+  const end = new Date(today); end.setDate(end.getDate() + 180)
+  try {
+    const ahead = await api.get<any[]>('/me/calendar', { start: dayKey(today), end: dayKey(end) }, true)
+    nextUp.value = ahead.filter(e => toLocal(e.date) >= today && e.status !== 'submitted' && e.status !== 'graded')
+      .sort((a, b) => toLocal(a.date).getTime() - toLocal(b.date).getTime())[0] || null
+  } catch { nextUp.value = null }
+})
+const jumpTo = (iso: string) => {
+  const d = toLocal(iso)
+  cursor.value = new Date(d.getFullYear(), d.getMonth(), 1)
+  selected.value = dayKey(d)
+}
+
 const byDay = computed(() => {
   const map: Record<string, any[]> = {}
   for (const e of events.value) (map[dayKey(toLocal(e.date))] ||= []).push(e)
@@ -72,10 +92,21 @@ const statusBadge = (e: any) => ({
   graded: ['Graded', 'bg-brand-50 text-brand-700'],
   upcoming: ['Unlocks', 'bg-amber-50 text-amber-700'],
   unlocked: ['Unlocked', 'bg-slate-100 text-slate-600'],
-  live: ['Live class', 'bg-rose-50 text-rose-700'],
+  live: ['Live class', 'bg-brand-50 text-brand-700'],
 }[e.status as string] || (e.role === 'teacher' ? ['Due (your course)', 'bg-violet-50 text-violet-700'] : null))
 
-const dot = (e: any) => e.type === 'live' ? 'bg-rose-500 ring-2 ring-rose-200' : e.type === 'unlock' ? 'bg-amber-500' : e.status === 'overdue' ? 'bg-rose-500' : e.role === 'teacher' ? 'bg-violet-500' : 'bg-sky-500'
+const dot = (e: any) => e.type === 'live' ? 'bg-brand-500' : e.type === 'unlock' ? 'bg-amber-500' : e.status === 'overdue' ? 'bg-rose-500' : e.role === 'teacher' ? 'bg-violet-500' : 'bg-sky-500'
+// key only lists what's actually on this calendar
+const legend = computed(() => {
+  const ev = events.value
+  return [
+    { label: 'Live class', cls: 'bg-brand-500', show: ev.some(e => e.type === 'live') },
+    { label: 'Assignment due', cls: 'bg-sky-500', show: ev.some(e => e.type !== 'live' && e.type !== 'unlock' && e.role !== 'teacher' && e.status !== 'overdue') },
+    { label: 'Overdue', cls: 'bg-rose-500', show: ev.some(e => e.status === 'overdue') },
+    { label: 'Lesson unlocks', cls: 'bg-amber-500', show: ev.some(e => e.type === 'unlock') },
+    { label: 'Due in a course you teach', cls: 'bg-violet-500', show: ev.some(e => e.role === 'teacher') },
+  ].filter(l => l.show)
+})
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 </script>
 
@@ -97,7 +128,7 @@ const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
       <!-- month grid -->
       <div class="card p-3 sm:p-4">
         <h2 class="font-bold text-slate-800 mb-3 px-1">{{ monthLabel }}</h2>
-        <div class="grid grid-cols-7 text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+        <div class="grid grid-cols-7 text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
           <div v-for="w in weekdays" :key="w" class="px-1 py-1 text-center sm:text-left">{{ w.slice(0, 1) }}<span class="hidden sm:inline">{{ w.slice(1) }}</span></div>
         </div>
         <div class="grid grid-cols-7 gap-px bg-slate-100 rounded-xl overflow-hidden border border-slate-100">
@@ -113,19 +144,15 @@ const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
             <!-- larger screens: labels -->
             <div class="hidden sm:block space-y-0.5 mt-0.5">
               <div v-for="(e, i) in (byDay[dayKey(d)] || []).slice(0, 2)" :key="i"
-                class="text-[10.5px] leading-tight truncate rounded px-1 py-0.5 flex items-center gap-1 bg-slate-50 text-slate-700">
+                class="text-xs leading-tight truncate rounded px-1 py-0.5 flex items-center gap-1 bg-slate-50 text-slate-700">
                 <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="dot(e)" />{{ e.title }}
               </div>
-              <div v-if="(byDay[dayKey(d)] || []).length > 2" class="text-[10px] text-slate-400 px-1">+{{ byDay[dayKey(d)].length - 2 }} more</div>
+              <div v-if="(byDay[dayKey(d)] || []).length > 2" class="text-xs text-slate-500 px-1">+{{ byDay[dayKey(d)].length - 2 }} more</div>
             </div>
           </button>
         </div>
-        <div class="flex flex-wrap gap-x-4 gap-y-1 mt-3 px-1 text-xs text-slate-500">
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500" /> Assignment due</span>
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500" /> Overdue</span>
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500" /> Lesson unlocks</span>
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500 ring-2 ring-rose-200" /> Live class</span>
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-violet-500" /> Due in a course you teach</span>
+        <div v-if="legend.length" class="flex flex-wrap gap-x-4 gap-y-1 mt-3 px-1 text-xs text-slate-600">
+          <span v-for="l in legend" :key="l.label" class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" :class="l.cls" /> {{ l.label }}</span>
         </div>
       </div>
 
@@ -136,22 +163,30 @@ const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
           <button v-if="selected" class="text-xs text-brand-700 font-semibold hover:underline" @click="selected = null">Show month</button>
         </div>
         <div v-if="loading" class="space-y-2"><div v-for="i in 3" :key="i" class="h-14 rounded-lg bg-slate-100 animate-pulse" /></div>
-        <div v-else-if="!agenda.length" class="text-center py-10 text-slate-400 text-sm">
-          <CalendarDays class="w-9 h-9 mx-auto mb-2 opacity-60" />Nothing scheduled{{ selected ? ' this day' : '' }}.
+        <div v-else-if="!agenda.length" class="text-center py-8 text-slate-600 text-sm">
+          <CalendarDays class="w-9 h-9 mx-auto mb-2 text-slate-400" />
+          <p>Nothing scheduled {{ selected ? 'this day' : 'this month' }}.</p>
+          <div v-if="!selected && nextUp" class="mt-4 rounded-xl border border-slate-200 p-3 text-left">
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Next up</p>
+            <p class="mt-1 font-semibold text-slate-800 truncate">{{ nextUp.title }}</p>
+            <p class="text-xs text-slate-600 truncate">{{ nextUp.course_title }} · {{ dateLong(nextUp.date) }}</p>
+            <button class="mt-2 text-sm font-semibold text-brand-700 hover:underline" @click="jumpTo(nextUp.date)">Go to {{ toLocal(nextUp.date).toLocaleDateString(undefined, { month: 'long' }) }} →</button>
+          </div>
+          <p v-else-if="!selected && nextChecked" class="mt-2 text-slate-500">Nothing coming up in the next six months. <NuxtLink to="/courses" class="text-brand-700 font-semibold hover:underline">Find a course</NuxtLink></p>
         </div>
         <ul v-else class="space-y-2">
           <li v-for="(e, i) in agenda" :key="i">
             <NuxtLink :to="e.link" class="flex gap-3 p-2.5 rounded-xl hover:bg-slate-50 border border-slate-100 transition">
               <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                :class="e.type === 'live' ? 'bg-rose-50 text-rose-600' : e.type === 'unlock' ? 'bg-amber-50 text-amber-600' : 'bg-sky-50 text-sky-600'">
+                :class="e.type === 'live' ? 'bg-brand-50 text-brand-600' : e.type === 'unlock' ? 'bg-amber-50 text-amber-600' : 'bg-sky-50 text-sky-600'">
                 <component :is="e.type === 'live' ? Video : e.type === 'unlock' ? Unlock : ClipboardList" class="w-4.5 h-4.5" />
               </div>
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-semibold text-slate-800 truncate">{{ e.title }}</p>
                 <p class="text-xs text-slate-500 truncate">{{ e.course_title }}</p>
                 <div class="flex items-center gap-2 mt-1">
-                  <span class="text-[11px] text-slate-400">{{ selected ? '' : dateLong(e.date) + ' · ' }}{{ time(e.date) }}</span>
-                  <span v-if="statusBadge(e)" class="badge !text-[10px]" :class="statusBadge(e)![1]">{{ statusBadge(e)![0] }}</span>
+                  <span class="text-xs text-slate-500">{{ selected ? '' : dateLong(e.date) + ' · ' }}{{ time(e.date) }}</span>
+                  <span v-if="statusBadge(e)" class="badge !text-xs" :class="statusBadge(e)![1]">{{ statusBadge(e)![0] }}</span>
                 </div>
               </div>
             </NuxtLink>

@@ -198,13 +198,31 @@ class EnrollmentService:
             .filter(Enrollment.user_id == user.id).order_by(Enrollment.enrolled_at.desc()).all()
         )
         course_ids = [e.course_id for e in enrollments]
+        # ordered lessons per course + what this learner has completed (2 queries total)
+        from app.modules.courses.models import Section
+        ordered: dict[int, list] = {}
+        for l, _ in (db.query(Lesson, Section.position).join(Section, Section.id == Lesson.section_id)
+                     .filter(Lesson.course_id.in_(course_ids or [0]))
+                     .order_by(Section.position, Lesson.position).all()):
+            ordered.setdefault(l.course_id, []).append(l)
+        done: dict[int, set] = {}
+        for p in db.query(LessonProgress).filter(LessonProgress.enrollment_id.in_([e.id for e in enrollments] or [0])):
+            done.setdefault(p.enrollment_id, set()).add(p.lesson_id)
         maps = CoursesService.aggregate_maps(db, course_ids) if course_ids else {
             "enrollments": {}, "ratings": {}, "review_counts": {}, "lesson_counts": {}, "minutes": {}}
         result = []
         for e in enrollments:
             card = CoursesService.course_to_dict(db, e.course, maps)
+            lessons = ordered.get(e.course_id, [])
+            finished = done.get(e.id, set())
+            remaining = [l for l in lessons if l.id not in finished]
+            nxt = next((l for l in remaining if not lesson_is_locked(e, l)), None)
             result.append({
                 "id": e.id, "status": e.status, "progress": e.progress,
+                "remaining_minutes": sum(l.duration_minutes or 0 for l in remaining),
+                "remaining_lessons": len(remaining),
+                "next_lesson": {"id": nxt.id, "title": nxt.title, "type": nxt.type.value,
+                                "duration_minutes": nxt.duration_minutes} if nxt else None,
                 "enrolled_at": e.enrolled_at.isoformat(), "completed_at": e.completed_at.isoformat() if e.completed_at else None,
                 "course": card,
             })

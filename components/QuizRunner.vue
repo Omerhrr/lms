@@ -77,7 +77,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="loading" class="py-12 text-center text-slate-400 text-sm">Loading quiz…</div>
+  <div v-if="loading" class="py-12 text-center text-slate-500 text-sm">Loading quiz…</div>
 
   <div v-else-if="quiz" class="max-w-3xl mx-auto">
     <!-- header -->
@@ -140,7 +140,7 @@ onMounted(load)
         <div v-for="(q, qi) in quiz.questions" :key="q.id" class="card p-5">
           <p class="font-semibold text-slate-800 text-sm mb-3">
             {{ qi + 1 }}. {{ q.text }}
-            <span class="text-xs font-normal text-slate-400">({{ q.points }} pt{{ q.points !== 1 ? 's' : '' }})</span>
+            <span class="text-xs font-normal text-slate-500">({{ q.points }} pt{{ q.points !== 1 ? 's' : '' }})</span>
           </p>
 
           <div v-if="q.type === 'single_choice' || q.type === 'true_false'" class="space-y-2">

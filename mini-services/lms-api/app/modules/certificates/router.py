@@ -17,6 +17,9 @@ def _cert_dict(c: Certificate) -> dict:
         "user_name": c.user_name,
         "instructor_name": c.instructor_name,
         "issued_at": c.issued_at.isoformat(),
+        "revoked": c.revoked_at is not None,
+        "revoked_at": c.revoked_at.isoformat() if c.revoked_at else None,
+        "revoke_reason": c.revoke_reason,
     }
 
 
@@ -49,6 +52,8 @@ def certificate_pdf(serial: str, request: Request, db: Session = Depends(get_db)
     cert = db.query(Certificate).filter(Certificate.serial == serial.upper()).first()
     if not cert:
         raise HTTPException(404, "Certificate not found - please check the serial number")
+    if cert.revoked_at:
+        raise HTTPException(410, "This certificate has been revoked")
     origin = request.headers.get("x-forwarded-host") or request.headers.get("host") or "infohive"
     pdf = render_certificate_pdf(
         user_name=cert.user_name, course_title=cert.course_title, instructor_name=cert.instructor_name,

@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.core.database import engine, ensure_columns
+from app.core.database import engine, ensure_columns, secure_tables
 from app.shared.base import Base
 
 # --- import ALL models so create_all sees every table ---
@@ -45,6 +45,7 @@ from app.modules.learning.router import router as learning_router
 from app.modules.payments.router import router as payments_router
 from app.modules.live.router import router as live_router
 from app.modules.site.router import router as site_router
+from app.modules.admin.router import router as admin_lms_router
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -54,6 +55,7 @@ async def lifespan(_app: FastAPI):
         try:
             Base.metadata.create_all(bind=engine)
             ensure_columns()
+            secure_tables()
         except Exception:  # noqa: BLE001 - don't take the API down if the DB is briefly unreachable
             import logging
             logging.getLogger("lms").exception("Startup schema check failed")
@@ -111,6 +113,7 @@ if _local_uploads:
 
 # ---- routes (all mounted under /api) ----
 app.include_router(auth_router, prefix="/api")
+app.include_router(admin_lms_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(courses_router, prefix="/api")
 app.include_router(enrollments_router, prefix="/api")

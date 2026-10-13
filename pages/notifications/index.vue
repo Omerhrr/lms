@@ -71,7 +71,7 @@ watch(page, load)
         <div class="flex-1 min-w-0">
           <p class="font-semibold text-sm" :class="n.is_read ? 'text-slate-600' : 'text-slate-900'">{{ n.title }}</p>
           <p v-if="n.body" class="text-sm text-slate-500 mt-0.5 line-clamp-2">{{ n.body }}</p>
-          <p class="text-xs text-slate-400 mt-1">{{ new Date(n.created_at).toLocaleString() }}</p>
+          <p class="text-xs text-slate-500 mt-1">{{ new Date(n.created_at).toLocaleString() }}</p>
         </div>
         <span v-if="!n.is_read" class="w-2.5 h-2.5 rounded-full bg-brand-500 mt-1.5 shrink-0" />
       </button>

@@ -3,6 +3,7 @@ import { Video, ExternalLink, PlayCircle, CalendarClock, Radio, CheckCircle2 } f
 
 /** Live classes for one course (courseId) or, without it, the signed-in user's upcoming classes. */
 const props = defineProps<{ courseId?: number; compact?: boolean; showCourse?: boolean }>()
+const emit = defineEmits<{ loaded: [upcoming: number] }>()
 const api = useApi()
 const sessions = ref<any[]>([])
 const loading = ref(true)
@@ -11,7 +12,10 @@ const load = async () => {
   loading.value = true
   try {
     sessions.value = await api.get<any[]>(props.courseId ? `/courses/${props.courseId}/live` : '/me/live', undefined, true)
-  } catch { sessions.value = [] } finally { loading.value = false }
+  } catch { sessions.value = [] } finally {
+    loading.value = false
+    emit('loaded', sessions.value.filter(s => ['upcoming', 'starting_soon', 'live'].includes(s.state)).length)
+  }
 }
 onMounted(load)
 // refresh states (upcoming -> starting soon -> live) every minute
@@ -24,7 +28,7 @@ const past = computed(() => sessions.value.filter(s => s.state === 'ended').reve
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 const badge = (s: any) => ({
   live: ['Live now', 'bg-rose-50 text-rose-700'], starting_soon: ['Starting soon', 'bg-amber-50 text-amber-700'],
-  upcoming: ['Scheduled', 'bg-slate-100 text-slate-600'], cancelled: ['Cancelled', 'bg-slate-100 text-slate-400 line-through'],
+  upcoming: ['Scheduled', 'bg-slate-100 text-slate-600'], cancelled: ['Cancelled', 'bg-slate-100 text-slate-500 line-through'],
   ended: ['Ended', 'bg-slate-100 text-slate-500'],
 }[s.state as string] || ['', ''])
 defineExpose({ reload: load })
@@ -47,7 +51,7 @@ defineExpose({ reload: load })
           <div class="min-w-0 flex-1">
             <p class="font-semibold text-slate-800 truncate">{{ s.title }}</p>
             <p class="text-xs text-slate-500 truncate">
-              <span v-if="showCourse && s.course">{{ s.course.title }} · </span>{{ when(s.starts_at) }} · {{ s.duration_minutes }} min
+              <span v-if="showCourse && s.course">{{ s.course.title }} · </span>{{ when(s.starts_at) }} · {{ fmtMinutes(s.duration_minutes) }}
               <span v-if="s.provider === 'external'"> · external link</span>
             </p>
           </div>
@@ -59,12 +63,12 @@ defineExpose({ reload: load })
         </li>
       </ul>
       <div v-if="!compact && past.length" class="mt-6">
-        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Past classes</h4>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Past classes</h4>
         <ul class="divide-y divide-slate-100 border border-slate-100 rounded-xl bg-white">
           <li v-for="s in past" :key="s.id" class="flex items-center gap-3 px-4 py-3 text-sm">
             <CheckCircle2 v-if="s.attended" class="w-4 h-4 text-brand-500 shrink-0" />
             <Video v-else class="w-4 h-4 text-slate-300 shrink-0" />
-            <span class="flex-1 min-w-0 truncate text-slate-700">{{ s.title }} <span class="text-slate-400">· {{ when(s.starts_at) }}</span></span>
+            <span class="flex-1 min-w-0 truncate text-slate-700">{{ s.title }} <span class="text-slate-500">· {{ when(s.starts_at) }}</span></span>
             <NuxtLink v-if="s.recording_url" :to="`/live/${s.id}`" class="text-brand-700 font-semibold inline-flex items-center gap-1 shrink-0">
               <PlayCircle class="w-4 h-4" /> Recording
             </NuxtLink>

@@ -3,6 +3,8 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      // half steps used for icons (w-4.5 = 18px, w-5.5 = 22px)
+      spacing: { 4.5: '1.125rem', 5.5: '1.375rem' },
       colors: {
         brand: {
           50: '#ecfdf5',

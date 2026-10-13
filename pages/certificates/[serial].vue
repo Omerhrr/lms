@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Printer, ShieldCheck, BadgeCheck, XCircle, Download } from 'lucide-vue-next'
+import { Printer, ShieldCheck, ShieldX, BadgeCheck, XCircle, Download } from 'lucide-vue-next'
 
 useSeoMeta({ title: 'Certificate - Infohive' })
 
@@ -25,7 +25,7 @@ const prettyDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, 
       <p class="text-sm text-slate-500 mt-1">The serial <b>{{ route.params.serial }}</b> doesn't match any issued certificate.</p>
     </div>
 
-    <div v-else-if="!cert" class="text-slate-400 text-sm">Verifying certificate…</div>
+    <div v-else-if="!cert" class="text-slate-500 text-sm">Verifying certificate…</div>
 
     <template v-else>
       <!-- certificate -->
@@ -38,7 +38,7 @@ const prettyDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, 
             <BrandLogo size="lg" tagline />
           </div>
 
-          <p class="text-xs font-bold tracking-[0.3em] uppercase text-slate-400">Certificate of Completion</p>
+          <p class="text-xs font-bold tracking-[0.3em] uppercase text-slate-500">Certificate of Completion</p>
           <p class="text-sm text-slate-500 mt-6">This certifies that</p>
           <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-2">{{ cert.user_name }}</h1>
           <p class="text-sm text-slate-500 mt-4">has successfully completed the course</p>
@@ -47,23 +47,30 @@ const prettyDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, 
           <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-16 text-sm">
             <div>
               <p class="font-cursive text-lg text-slate-700 font-semibold">{{ cert.instructor_name }}</p>
-              <div class="border-t border-slate-300 mt-1 pt-1 text-xs text-slate-400">Instructor</div>
+              <div class="border-t border-slate-300 mt-1 pt-1 text-xs text-slate-500">Instructor</div>
             </div>
             <div class="w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg">
               <BadgeCheck class="w-7 h-7 text-white" />
             </div>
             <div>
               <p class="text-slate-700 font-semibold">{{ prettyDate(cert.issued_at) }}</p>
-              <div class="border-t border-slate-300 mt-1 pt-1 text-xs text-slate-400">Date issued</div>
+              <div class="border-t border-slate-300 mt-1 pt-1 text-xs text-slate-500">Date issued</div>
             </div>
           </div>
 
-          <p class="mt-10 text-xs text-slate-400 font-mono">Serial: {{ cert.serial }}</p>
+          <p class="mt-10 text-xs text-slate-500 font-mono">Serial: {{ cert.serial }}</p>
         </div>
       </div>
 
       <!-- verify banner -->
-      <div class="mt-6 card p-4 flex flex-wrap sm:flex-nowrap items-center gap-3 max-w-3xl w-full no-print">
+      <div v-if="cert.revoked" class="mt-6 card p-4 flex items-start gap-3 max-w-3xl w-full border-rose-200 bg-rose-50" role="alert">
+        <ShieldX class="w-8 h-8 text-rose-600 shrink-0" />
+        <div class="text-sm">
+          <b class="text-rose-800">This certificate has been revoked.</b>
+          <span class="text-rose-800"> It is no longer valid{{ cert.revoke_reason ? `. Reason: ${cert.revoke_reason}` : '' }}.</span>
+        </div>
+      </div>
+      <div v-else class="mt-6 card p-4 flex flex-wrap sm:flex-nowrap items-center gap-3 max-w-3xl w-full no-print">
         <ShieldCheck class="w-8 h-8 text-brand-600 shrink-0" />
         <div class="text-sm flex-1 min-w-[12rem]">
           <b class="text-slate-800">Verified certificate.</b>

@@ -55,8 +55,8 @@ const reset = async () => {
 
       <div v-if="stage === 'request'" class="card p-6 space-y-4">
         <div>
-          <label class="label">Account email</label>
-          <input v-model="email" type="email" class="input" placeholder="you@example.com" @keyup.enter="request" />
+          <label class="label" for="forgot-password-email">Account email</label>
+          <input id="forgot-password-email" v-model="email" type="email" class="input" placeholder="you@example.com" @keyup.enter="request" />
         </div>
         <button class="btn-primary w-full" :disabled="loading" @click="request">{{ loading ? 'Working…' : 'Send reset link' }}</button>
       </div>
@@ -69,8 +69,8 @@ const reset = async () => {
 
       <div v-else-if="stage === 'reset'" class="card p-6 space-y-4">
         <div>
-          <label class="label">New password</label>
-          <input v-model="newPassword" type="password" class="input" placeholder="8+ characters" />
+          <label class="label" for="forgot-password-newPassword">New password</label>
+          <input id="forgot-password-newPassword" v-model="newPassword" type="password" class="input" placeholder="8+ characters" />
         </div>
         <button class="btn-primary w-full" :disabled="loading" @click="reset">{{ loading ? 'Resetting…' : 'Set new password' }}</button>
       </div>

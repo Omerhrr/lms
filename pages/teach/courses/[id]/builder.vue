@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  Plus, Trash2, ChevronUp, ChevronDown, PlayCircle, FileText, FileDown,
+  Plus, Trash2, ChevronUp, ChevronDown, GripVertical, PlayCircle, FileText, FileDown,
   BarChart3, Save, Pencil, HelpCircle, ListPlus, GraduationCap
 } from 'lucide-vue-next'
 
@@ -53,12 +53,27 @@ const moveSection = async (id: number, direction: string) => {
   await load()
 }
 
-const deleteSection = async (id: number) => {
-  if (!confirm('Delete this section and all its lessons?')) return
-  await api.del(`/teach/sections/${id}`)
-  show('Section deleted', 'info')
-  await load()
+// ---------- deletes with undo: hidden at once, removed for real after a few seconds ----------
+const pending = ref<null | { kind: 'section' | 'lesson'; id: number; label: string }>(null)
+let pendingTimer: ReturnType<typeof setTimeout> | undefined
+const commitPending = async () => {
+  clearTimeout(pendingTimer)
+  const p = pending.value
+  if (!p) return
+  pending.value = null
+  try { await api.del(p.kind === 'section' ? `/teach/sections/${p.id}` : `/teach/lessons/${p.id}`) } finally { await load() }
 }
+const scheduleDelete = async (kind: 'section' | 'lesson', id: number, label: string) => {
+  await commitPending()   // one undo at a time
+  pending.value = { kind, id, label }
+  pendingTimer = setTimeout(commitPending, 6000)
+}
+const undoDelete = () => { clearTimeout(pendingTimer); pending.value = null }
+onBeforeUnmount(commitPending)
+const isHidden = (kind: 'section' | 'lesson', id: number) => pending.value?.kind === kind && pending.value.id === id
+const visibleSections = computed(() => (course.value?.sections || []).filter((s: any) => !isHidden('section', s.id)))
+
+const deleteSection = (s: any) => scheduleDelete('section', s.id, `Section "${s.title}" deleted`)
 
 // ---------- lessons ----------
 const openLesson = (sectionId: number, editing?: any) => {
@@ -93,12 +108,36 @@ const moveLesson = async (id: number, direction: string) => {
   await load()
 }
 
-const deleteLesson = async (id: number) => {
-  if (!confirm('Delete this lesson (and its quiz/attempts)?')) return
-  await api.del(`/teach/lessons/${id}`)
-  show('Lesson deleted', 'info')
-  await load()
+const deleteLesson = (l: any) => scheduleDelete('lesson', l.id, `Lesson "${l.title}" deleted`)
+
+// ---------- drag to reorder lessons within a section (the API moves one step at a time) ----------
+const drag = ref<null | { sectionId: number; from: number }>(null)
+const dropAt = ref<null | { sectionId: number; index: number }>(null)
+const reordering = ref(false)
+const onDragStart = (e: DragEvent, sectionId: number, index: number) => {
+  drag.value = { sectionId, from: index }
+  e.dataTransfer?.setData('text/plain', String(index))
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
 }
+const onDragOver = (e: DragEvent, sectionId: number, index: number) => {
+  if (!drag.value || drag.value.sectionId !== sectionId) return   // lessons stay in their section
+  e.preventDefault()
+  dropAt.value = { sectionId, index }
+}
+const onDrop = async (section: any, index: number) => {
+  const d = drag.value
+  drag.value = null; dropAt.value = null
+  if (!d || d.sectionId !== section.id || d.from === index) return
+  const lesson = section.lessons[d.from]
+  // optimistic: show the new order straight away
+  const list = [...section.lessons]; list.splice(index, 0, list.splice(d.from, 1)[0]); section.lessons = list
+  reordering.value = true
+  try {
+    const dir = index > d.from ? 'down' : 'up'
+    for (let i = 0; i < Math.abs(index - d.from); i++) await api.post(`/teach/lessons/${lesson.id}/move`, { direction: dir })
+  } finally { reordering.value = false; await load() }
+}
+const onDragEnd = () => { drag.value = null; dropAt.value = null }
 
 // ---------- quiz editor ----------
 const emptyQuiz = () => ({ id: undefined, title: '', description: '', time_limit_minutes: null, passing_score: 60, max_attempts: 0, questions: [] })
@@ -197,38 +236,44 @@ const letter = (i: number) => String.fromCharCode(65 + i)
     <div v-if="loading" class="space-y-4"><div v-for="i in 3" :key="i" class="card h-16 animate-pulse" /></div>
 
     <div v-else class="space-y-4 max-w-4xl">
-      <div v-for="(s, si) in course.sections" :key="s.id" class="card overflow-hidden">
-        <div class="flex items-center gap-2 px-4 py-3.5 bg-slate-50 border-b border-slate-100">
+      <p class="text-sm text-slate-600 -mt-1">Drag lessons by their handle to reorder them within a section.</p>
+      <div v-for="(s, si) in visibleSections" :key="s.id" class="card overflow-visible">
+        <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-100 rounded-t-xl">
           <GraduationCap class="w-4.5 h-4.5 text-brand-600 shrink-0" />
           <h3 class="font-bold text-slate-800 flex-1 min-w-0 truncate">{{ si + 1 }}. {{ s.title }}</h3>
-          <div class="flex items-center gap-0.5 shrink-0">
-            <button class="p-1.5 rounded hover:bg-slate-200 text-slate-500" title="Move up" :disabled="si === 0" @click="moveSection(s.id, 'up')"><ChevronUp class="w-4 h-4" /></button>
-            <button class="p-1.5 rounded hover:bg-slate-200 text-slate-500" title="Move down" :disabled="si === course.sections.length - 1" @click="moveSection(s.id, 'down')"><ChevronDown class="w-4 h-4" /></button>
-            <button class="p-1.5 rounded hover:bg-slate-200 text-slate-500" title="Rename" @click="sectionModal = { open: true, id: s.id, title: s.title }"><Pencil class="w-4 h-4" /></button>
-            <button class="p-1.5 rounded hover:bg-rose-100 text-rose-500" title="Delete" @click="deleteSection(s.id)"><Trash2 class="w-4 h-4" /></button>
-          </div>
+          <span v-if="reordering" class="text-xs text-slate-500">Saving order…</span>
+          <button class="btn-ghost text-sm !px-2.5 shrink-0" @click="sectionModal = { open: true, id: s.id, title: s.title }"><Pencil class="w-4 h-4" /> Rename</button>
+          <RowMenu :label="`More actions for section ${s.title}`" :items="[
+            { label: 'Move section up', icon: ChevronUp, disabled: si === 0, action: () => moveSection(s.id, 'up') },
+            { label: 'Move section down', icon: ChevronDown, disabled: si === visibleSections.length - 1, action: () => moveSection(s.id, 'down') },
+            { label: 'Delete section', icon: Trash2, danger: true, action: () => deleteSection(s) },
+          ]" />
         </div>
 
         <div class="divide-y divide-slate-50">
-          <div v-for="(l, li) in s.lessons" :key="l.id" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/60 group">
+          <div v-for="(l, li) in s.lessons" v-show="!isHidden('lesson', l.id)" :key="l.id"
+            class="flex items-center gap-3 pl-2 pr-3 py-2.5 hover:bg-slate-50 transition"
+            :class="[drag?.sectionId === s.id && drag.from === li ? 'opacity-40' : '', dropAt?.sectionId === s.id && dropAt.index === li && drag?.from !== li ? 'shadow-[inset_0_2px_0_#10b981]' : '']"
+            draggable="true" @dragstart="onDragStart($event, s.id, li)" @dragover="onDragOver($event, s.id, li)" @drop.prevent="onDrop(s, li)" @dragend="onDragEnd">
+            <span class="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-700 p-1" aria-hidden="true" title="Drag to reorder"><GripVertical class="w-4 h-4" /></span>
             <component :is="l.type === 'video' ? PlayCircle : l.type === 'quiz' ? BarChart3 : l.type === 'file' ? FileDown : FileText"
               class="w-4.5 h-4.5 shrink-0" :class="l.type === 'quiz' ? 'text-violet-500' : 'text-brand-600'" />
             <div class="flex-1 min-w-0">
               <div class="text-sm font-medium text-slate-700 truncate">{{ l.title }}
                 <span v-if="l.is_preview" class="badge bg-brand-50 text-brand-700 ml-1.5">Preview</span>
               </div>
-              <div class="text-xs text-slate-400"><span class="capitalize">{{ l.type }}</span> · {{ l.duration_minutes }} min<span v-if="l.drip_days" class="text-amber-600"> · unlocks day {{ l.drip_days }}</span></div>
+              <div class="text-xs text-slate-500"><span class="capitalize">{{ l.type }}</span> · {{ fmtMinutes(l.duration_minutes) }}<span v-if="l.drip_days" class="text-amber-600"> · unlocks day {{ l.drip_days }}</span></div>
             </div>
             <button v-if="l.type === 'quiz'" @click="openQuiz(l)"
               class="btn-ghost text-xs !px-2.5 text-violet-700 hover:bg-violet-50 shrink-0">
               <HelpCircle class="w-3.5 h-3.5" /> Quiz
             </button>
-            <div class="flex items-center gap-0.5 shrink-0 opacity-60 group-hover:opacity-100 transition">
-              <button class="p-1.5 rounded hover:bg-slate-200 text-slate-500" :disabled="li === 0 && si === 0" title="Move up" @click="moveLesson(l.id, 'up')"><ChevronUp class="w-4 h-4" /></button>
-              <button class="p-1.5 rounded hover:bg-slate-200 text-slate-500" title="Move down" @click="moveLesson(l.id, 'down')"><ChevronDown class="w-4 h-4" /></button>
-              <button class="p-1.5 rounded hover:bg-slate-200 text-slate-500" title="Edit" @click="openLesson(s.id, l)"><Pencil class="w-4 h-4" /></button>
-              <button class="p-1.5 rounded hover:bg-rose-100 text-rose-500" title="Delete" @click="deleteLesson(l.id)"><Trash2 class="w-4 h-4" /></button>
-            </div>
+            <button class="btn-ghost text-sm !px-2.5 shrink-0" :aria-label="`Edit ${l.title}`" @click="openLesson(s.id, l)"><Pencil class="w-4 h-4" /> <span class="hidden sm:inline">Edit</span></button>
+            <RowMenu :label="`More actions for ${l.title}`" :items="[
+              { label: 'Move up', icon: ChevronUp, disabled: li === 0, action: () => moveLesson(l.id, 'up') },
+              { label: 'Move down', icon: ChevronDown, disabled: li === s.lessons.length - 1, action: () => moveLesson(l.id, 'down') },
+              { label: 'Delete lesson', icon: Trash2, danger: true, action: () => deleteLesson(l) },
+            ]" />
           </div>
         </div>
 
@@ -267,13 +312,13 @@ const letter = (i: number) => String.fromCharCode(65 + i)
     <Modal :open="lessonModal.open" :title="lessonModal.editing ? 'Edit lesson' : 'Add lesson'" :wide="lessonForm.type === 'text'" @close="lessonModal = { open: false }">
       <div class="space-y-4">
         <div>
-          <label class="label">Title</label>
-          <input v-model="lessonForm.title" class="input" placeholder="Lesson title" />
+          <label class="label" for="teach-courses-id-bui-lessonForm-title">Title</label>
+          <input id="teach-courses-id-bui-lessonForm-title" v-model="lessonForm.title" class="input" placeholder="Lesson title" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="label">Type</label>
-            <select v-model="lessonForm.type" class="input">
+            <label class="label" for="teach-courses-id-bui-lessonForm-type">Type</label>
+            <select id="teach-courses-id-bui-lessonForm-type" v-model="lessonForm.type" class="input">
               <option value="video">Video</option>
               <option value="text">Text</option>
               <option value="file">File download</option>
@@ -281,23 +326,23 @@ const letter = (i: number) => String.fromCharCode(65 + i)
             </select>
           </div>
           <div>
-            <label class="label">Duration (min)</label>
-            <input v-model.number="lessonForm.duration_minutes" type="number" min="1" class="input" />
+            <label class="label" for="teach-courses-id-bui-lessonForm-duration_minutes">Duration (min)</label>
+            <input id="teach-courses-id-bui-lessonForm-duration_minutes" v-model.number="lessonForm.duration_minutes" type="number" min="1" class="input" />
           </div>
         </div>
         <div v-if="lessonForm.type === 'video'">
-          <label class="label">Video link</label>
-          <input v-model="lessonForm.video_url" class="input" placeholder="https://www.youtube.com/watch?v=… or https://vimeo.com/… or .mp4" />
+          <label class="label" for="teach-courses-id-bui-lessonForm-video_url">Video link</label>
+          <input id="teach-courses-id-bui-lessonForm-video_url" v-model="lessonForm.video_url" class="input" placeholder="https://www.youtube.com/watch?v=… or https://vimeo.com/… or .mp4" />
           <p v-if="lessonForm.video_url && videoSource" class="text-xs text-brand-700 mt-1">
             ✓ {{ videoKindLabel(videoSource) }} video detected. Students watch it inside Infohive only - no download or YouTube/Vimeo links.
           </p>
           <p v-else-if="lessonForm.video_url" class="text-xs text-rose-600 mt-1">Unrecognised link. Paste a YouTube, Vimeo or direct .mp4/.webm link.</p>
-          <p v-else class="text-xs text-slate-400 mt-1">Paste any normal YouTube or Vimeo link, or a direct video file link.</p>
+          <p v-else class="text-xs text-slate-500 mt-1">Paste any normal YouTube or Vimeo link, or a direct video file link.</p>
           <div v-if="videoSource" class="mt-3"><VideoPlayer :url="lessonForm.video_url" /></div>
         </div>
         <div v-if="lessonForm.type === 'file'">
-          <label class="label">File URL (upload via Media, or paste link)</label>
-          <input v-model="lessonForm.file_url" class="input" placeholder="/api/media/files/…" />
+          <label class="label" for="teach-courses-id-bui-lessonForm-file_url">File URL (upload via Media, or paste link)</label>
+          <input id="teach-courses-id-bui-lessonForm-file_url" v-model="lessonForm.file_url" class="input" placeholder="/api/media/files/…" />
         </div>
         <div v-if="lessonForm.type === 'text'">
           <label class="label">Content</label>
@@ -312,7 +357,7 @@ const letter = (i: number) => String.fromCharCode(65 + i)
             <input v-model.number="lessonForm.drip_days" type="number" min="0" max="3650" class="input !w-24" />
             <span class="text-sm text-slate-600">days after a student enrolls</span>
           </div>
-          <p class="text-xs text-slate-400 mt-1">0 = available immediately.</p>
+          <p class="text-xs text-slate-500 mt-1">0 = available immediately.</p>
         </div>
         <label class="flex items-center gap-2 text-sm text-slate-600">
           <input v-model="lessonForm.is_preview" type="checkbox" class="rounded accent-brand-600" />
@@ -335,26 +380,26 @@ const letter = (i: number) => String.fromCharCode(65 + i)
       <div class="space-y-4">
         <div class="grid sm:grid-cols-2 gap-3">
           <div>
-            <label class="label">Quiz title</label>
-            <input v-model="quiz.title" class="input" placeholder="Quiz" />
+            <label class="label" for="teach-courses-id-bui-quiz-title">Quiz title</label>
+            <input id="teach-courses-id-bui-quiz-title" v-model="quiz.title" class="input" placeholder="Quiz" />
           </div>
           <div>
-            <label class="label">Description</label>
-            <input v-model="quiz.description" class="input" placeholder="Optional instructions" />
+            <label class="label" for="teach-courses-id-bui-quiz-description">Description</label>
+            <input id="teach-courses-id-bui-quiz-description" v-model="quiz.description" class="input" placeholder="Optional instructions" />
           </div>
         </div>
         <div class="grid grid-cols-3 gap-3">
           <div>
-            <label class="label">Pass score %</label>
-            <input v-model.number="quiz.passing_score" type="number" min="1" max="100" class="input" />
+            <label class="label" for="teach-courses-id-bui-quiz-passing_score">Pass score %</label>
+            <input id="teach-courses-id-bui-quiz-passing_score" v-model.number="quiz.passing_score" type="number" min="1" max="100" class="input" />
           </div>
           <div>
-            <label class="label">Max attempts</label>
-            <input v-model.number="quiz.max_attempts" type="number" min="0" class="input" placeholder="0 = unlimited" />
+            <label class="label" for="teach-courses-id-bui-quiz-max_attempts">Max attempts</label>
+            <input id="teach-courses-id-bui-quiz-max_attempts" v-model.number="quiz.max_attempts" type="number" min="0" class="input" placeholder="0 = unlimited" />
           </div>
           <div>
-            <label class="label">Time limit (min)</label>
-            <input v-model.number="quiz.time_limit_minutes" type="number" min="0" class="input" placeholder="0 = none" />
+            <label class="label" for="teach-courses-id-bui-quiz-time_limit_minutes">Time limit (min)</label>
+            <input id="teach-courses-id-bui-quiz-time_limit_minutes" v-model.number="quiz.time_limit_minutes" type="number" min="0" class="input" placeholder="0 = none" />
           </div>
         </div>
         <button class="btn-secondary text-sm" @click="saveQuizMeta"><Save class="w-4 h-4" /> Save settings</button>
@@ -368,13 +413,13 @@ const letter = (i: number) => String.fromCharCode(65 + i)
             <div v-for="(q, qi) in quiz.questions || []" :key="q.id" class="border border-slate-200 rounded-lg p-3.5 flex gap-3">
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-semibold text-slate-700">{{ qi + 1 }}. {{ q.text }}</p>
-                <p class="text-xs text-slate-400 mt-1 capitalize">{{ q.type.replace('_', ' ') }} · {{ q.points }} pt
+                <p class="text-xs text-slate-500 mt-1 capitalize">{{ q.type.replace('_', ' ') }} · {{ q.points }} pt
                   · correct: {{ q.type === 'short_answer' ? q.correct.join(', ') : q.correct.map((c: number) => letter(c)).join(', ') }}</p>
               </div>
               <button class="p-1.5 rounded hover:bg-slate-100 text-slate-500 shrink-0" @click="openQuestion(q)"><Pencil class="w-4 h-4" /></button>
               <button class="p-1.5 rounded hover:bg-rose-100 text-rose-500 shrink-0" @click="deleteQuestion(q.id)"><Trash2 class="w-4 h-4" /></button>
             </div>
-            <p v-if="!quiz.questions?.length" class="text-sm text-slate-400 text-center py-3">No questions yet.</p>
+            <p v-if="!quiz.questions?.length" class="text-sm text-slate-500 text-center py-3">No questions yet.</p>
           </div>
         </div>
       </div>
@@ -386,8 +431,8 @@ const letter = (i: number) => String.fromCharCode(65 + i)
       <div class="space-y-4">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="label">Type</label>
-            <select v-model="questionForm.type" class="input" @change="qTypeChanged">
+            <label class="label" for="teach-courses-id-bui-questionForm-type">Type</label>
+            <select id="teach-courses-id-bui-questionForm-type" v-model="questionForm.type" class="input" @change="qTypeChanged">
               <option value="single_choice">Single choice</option>
               <option value="multi_choice">Multiple choice</option>
               <option value="true_false">True / False</option>
@@ -395,17 +440,17 @@ const letter = (i: number) => String.fromCharCode(65 + i)
             </select>
           </div>
           <div>
-            <label class="label">Points</label>
-            <input v-model.number="questionForm.points" type="number" min="0.5" step="0.5" class="input" />
+            <label class="label" for="teach-courses-id-bui-questionForm-points">Points</label>
+            <input id="teach-courses-id-bui-questionForm-points" v-model.number="questionForm.points" type="number" min="0.5" step="0.5" class="input" />
           </div>
         </div>
         <div>
-          <label class="label">Question text</label>
-          <textarea v-model="questionForm.text" class="input min-h-[70px]" />
+          <label class="label" for="teach-courses-id-bui-questionForm-text">Question text</label>
+          <textarea id="teach-courses-id-bui-questionForm-text" v-model="questionForm.text" class="input min-h-[70px]" />
         </div>
         <div v-if="questionForm.type !== 'short_answer'">
-          <label class="label">Options (one per line)</label>
-          <textarea v-model="questionForm.optionsText" class="input min-h-[90px] font-mono text-xs"
+          <label class="label" for="teach-courses-id-bui-questionForm-optionsText">Options (one per line)</label>
+          <textarea id="teach-courses-id-bui-questionForm-optionsText" v-model="questionForm.optionsText" class="input min-h-[90px] font-mono text-xs"
             :disabled="questionForm.type === 'true_false'" />
         </div>
         <div>
@@ -423,8 +468,8 @@ const letter = (i: number) => String.fromCharCode(65 + i)
           <textarea v-else v-model="questionForm.correctText" class="input min-h-[70px] font-mono text-xs" placeholder="paris&#nThe capital of France" />
         </div>
         <div>
-          <label class="label">Explanation (shown after grading)</label>
-          <input v-model="questionForm.explanation" class="input" placeholder="Optional" />
+          <label class="label" for="teach-courses-id-bui-questionForm-explanation">Explanation (shown after grading)</label>
+          <input id="teach-courses-id-bui-questionForm-explanation" v-model="questionForm.explanation" class="input" placeholder="Optional" />
         </div>
       </div>
       <template #footer>
@@ -434,5 +479,6 @@ const letter = (i: number) => String.fromCharCode(65 + i)
         </div>
       </template>
     </Modal>
+    <UndoBar :message="pending?.label || null" @undo="undoDelete" />
   </div>
 </template>

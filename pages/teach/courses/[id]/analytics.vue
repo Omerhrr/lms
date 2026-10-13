@@ -44,19 +44,19 @@ const fmtDate = (s: string) => {
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div class="card p-5 flex items-center gap-4">
           <div class="w-11 h-11 rounded-xl bg-sky-50 flex items-center justify-center"><Users class="w-5.5 h-5.5 text-sky-600" /></div>
-          <div><div class="text-2xl font-extrabold">{{ data.enrollments }}</div><div class="text-xs text-slate-400">Enrollments</div></div>
+          <div><div class="text-2xl font-extrabold">{{ data.enrollments }}</div><div class="text-xs text-slate-500">Enrollments</div></div>
         </div>
         <div class="card p-5 flex items-center gap-4">
           <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center"><Trophy class="w-5.5 h-5.5 text-emerald-600" /></div>
-          <div><div class="text-2xl font-extrabold">{{ data.completion_rate }}%</div><div class="text-xs text-slate-400">Completion rate</div></div>
+          <div><div class="text-2xl font-extrabold">{{ data.completion_rate }}%</div><div class="text-xs text-slate-500">Completion rate</div></div>
         </div>
         <div class="card p-5 flex items-center gap-4">
           <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center"><DollarSign class="w-5.5 h-5.5 text-amber-600" /></div>
-          <div><div class="text-2xl font-extrabold">{{ revenue(data.revenue) }}</div><div class="text-xs text-slate-400">Revenue</div></div>
+          <div><div class="text-2xl font-extrabold">{{ revenue(data.revenue) }}</div><div class="text-xs text-slate-500">Revenue</div></div>
         </div>
         <div class="card p-5 flex items-center gap-4">
           <div class="w-11 h-11 rounded-xl bg-violet-50 flex items-center justify-center"><BarChart3 class="w-5.5 h-5.5 text-violet-600" /></div>
-          <div><div class="text-2xl font-extrabold">{{ data.quiz_stats.reduce((s: number, q: any) => s + q.attempts, 0) }}</div><div class="text-xs text-slate-400">Quiz attempts</div></div>
+          <div><div class="text-2xl font-extrabold">{{ data.quiz_stats.reduce((s: number, q: any) => s + q.attempts, 0) }}</div><div class="text-xs text-slate-500">Quiz attempts</div></div>
         </div>
       </div>
 
@@ -82,13 +82,13 @@ const fmtDate = (s: string) => {
             <div v-for="l in data.lesson_stats" :key="l.lesson_id">
               <div class="flex justify-between text-sm mb-1">
                 <span class="text-slate-600 truncate pr-3">{{ l.title }}</span>
-                <span class="text-slate-400 text-xs shrink-0">{{ l.completed_by }} students</span>
+                <span class="text-slate-500 text-xs shrink-0">{{ l.completed_by }} students</span>
               </div>
               <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
                 <div class="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-400" :style="`width:${l.pct}%`" />
               </div>
             </div>
-            <p v-if="!data.lesson_stats.length" class="text-sm text-slate-400 text-center py-4">No lessons yet.</p>
+            <p v-if="!data.lesson_stats.length" class="text-sm text-slate-500 text-center py-4">No lessons yet.</p>
           </div>
         </div>
 
@@ -99,10 +99,10 @@ const fmtDate = (s: string) => {
             <div v-if="data.quiz_stats.length" class="space-y-3">
               <div v-for="q in data.quiz_stats" :key="q.quiz_id" class="flex items-center justify-between text-sm">
                 <span class="text-slate-600 truncate pr-3">{{ q.title }}</span>
-                <span class="text-slate-400 text-xs shrink-0">{{ q.attempts }} attempts · avg <b class="text-slate-700">{{ q.avg_score }}%</b></span>
+                <span class="text-slate-500 text-xs shrink-0">{{ q.attempts }} attempts · avg <b class="text-slate-700">{{ q.avg_score }}%</b></span>
               </div>
             </div>
-            <p v-else class="text-sm text-slate-400 text-center py-4">No quizzes yet.</p>
+            <p v-else class="text-sm text-slate-500 text-center py-4">No quizzes yet.</p>
           </div>
           <div class="card p-5">
             <h2 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><ClipboardList class="w-4.5 h-4.5 text-amber-500" /> Assignment submissions</h2>
@@ -112,7 +112,7 @@ const fmtDate = (s: string) => {
                 <span class="badge bg-slate-100 text-slate-600 shrink-0">{{ a.submissions }} submissions</span>
               </div>
             </div>
-            <p v-else class="text-sm text-slate-400 text-center py-4">No assignments yet.</p>
+            <p v-else class="text-sm text-slate-500 text-center py-4">No assignments yet.</p>
           </div>
         </div>
       </div>

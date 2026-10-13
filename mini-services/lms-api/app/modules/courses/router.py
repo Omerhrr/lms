@@ -196,8 +196,9 @@ def update_course(course_id: int, data: CourseUpdateIn, db: Session = Depends(ge
 def publish_course(course_id: int, db: Session = Depends(get_db), user: User = Depends(staff_required)):
     course = CoursesService.get_course(db, course_id)
     CoursesService.assert_can_manage(course, user)
-    if not course.sections:
-        raise HTTPException(400, "Add at least one section before publishing")
+    missing = [i["label"] for i in CoursesService.readiness(course) if i["required"] and not i["ok"]]
+    if missing:
+        raise HTTPException(400, "Before publishing: " + "; ".join(missing).lower())
     CoursesService.set_status(db, course, CourseStatus.published)
     return {"message": "Course published"}
 
@@ -326,3 +327,23 @@ def move_lesson(lesson_id: int, body: MoveIn, db: Session = Depends(get_db), use
     section = lesson.section
     CoursesService.move_lesson(db, section, lesson, body.direction)
     return {"message": "Lesson moved"}
+
+
+@router.get("/reviews/featured")
+def featured_reviews(db: Session = Depends(get_db)):
+    """Real learner reviews (4-5 stars with a written comment) for the website's social proof."""
+    from sqlalchemy.orm import joinedload
+    from app.modules.courses.models import Review, Course as _C
+    rows = (db.query(Review).options(joinedload(Review.user), joinedload(Review.course))
+            .join(_C, _C.id == Review.course_id)
+            .filter(Review.rating >= 4, Review.comment.isnot(None), _C.status == CourseStatus.published)
+            .order_by(Review.rating.desc(), Review.created_at.desc()).limit(30).all())
+    out = []
+    for r in rows:
+        if r.user and r.course and len((r.comment or "").strip()) >= 20:
+            out.append({"rating": r.rating, "comment": r.comment.strip(),
+                        "user": {"full_name": r.user.full_name, "headline": r.user.headline},
+                        "course": {"title": r.course.title, "slug": r.course.slug}})
+        if len(out) == 6:
+            break
+    return out

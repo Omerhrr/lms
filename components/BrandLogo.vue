@@ -12,7 +12,7 @@ withDefaults(defineProps<{ size?: 'sm' | 'md' | 'lg'; dark?: boolean; tagline?: 
         :class="[size === 'sm' ? 'text-lg' : size === 'lg' ? 'text-2xl' : 'text-xl', dark ? 'text-white' : 'text-slate-900 dark:text-white']">
         Info<span :class="dark ? 'text-brand-400' : 'text-brand-600 dark:text-brand-400'">hive</span>
       </span>
-      <span v-if="tagline" class="block text-[10px] uppercase tracking-[0.18em] mt-1"
+      <span v-if="tagline" class="block text-xs uppercase tracking-[0.18em] mt-1"
         :class="dark ? 'text-slate-400' : 'text-slate-500'">Technology Ltd.</span>
     </span>
   </span>

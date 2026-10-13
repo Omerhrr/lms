@@ -113,7 +113,7 @@ const stateBadge: Record<string, [string, string]> = {
               <h3 class="font-bold text-slate-800" :class="s.status === 'cancelled' && 'line-through text-slate-400'">{{ s.title }}</h3>
               <span class="badge" :class="stateBadge[s.state]?.[1]">{{ stateBadge[s.state]?.[0] }}</span>
             </div>
-            <p class="text-xs text-slate-500 mt-0.5">{{ when(s.starts_at) }} · {{ s.duration_minutes }} min ·
+            <p class="text-xs text-slate-500 mt-0.5">{{ when(s.starts_at) }} · {{ fmtMinutes(s.duration_minutes) }} ·
               {{ s.provider === 'external' ? 'External link' : 'Built-in video room' }} ·
               <span class="font-semibold text-slate-600">{{ s.attendance_count }}/{{ data.enrolled }}</span> attended</p>
             <p v-if="s.recording_url" class="text-xs text-brand-700 mt-1 flex items-center gap-1"><PlayCircle class="w-3.5 h-3.5" /> Recording linked</p>
@@ -136,12 +136,12 @@ const stateBadge: Record<string, [string, string]> = {
     <!-- schedule / edit -->
     <Modal :open="modal.open" :title="modal.editing ? 'Edit live class' : 'Schedule a live class'" @close="modal = { open: false }">
       <div class="space-y-4">
-        <div><label class="label">Title</label><input v-model="form.title" class="input" placeholder="e.g. Week 1 kick-off & Q&A" /></div>
+        <div><label class="label" for="teach-courses-id-liv-form-title">Title</label><input id="teach-courses-id-liv-form-title" v-model="form.title" class="input" placeholder="e.g. Week 1 kick-off & Q&A" /></div>
         <div class="grid sm:grid-cols-[1fr_8rem] gap-3">
-          <div><label class="label">Starts</label><input v-model="form.starts_local" type="datetime-local" class="input" /></div>
-          <div><label class="label">Length (min)</label><input v-model.number="form.duration_minutes" type="number" min="10" max="600" step="5" class="input" /></div>
+          <div><label class="label" for="teach-courses-id-liv-form-starts_local">Starts</label><input id="teach-courses-id-liv-form-starts_local" v-model="form.starts_local" type="datetime-local" class="input" /></div>
+          <div><label class="label" for="teach-courses-id-liv-form-duration_minutes">Length (min)</label><input id="teach-courses-id-liv-form-duration_minutes" v-model.number="form.duration_minutes" type="number" min="10" max="600" step="5" class="input" /></div>
         </div>
-        <p class="text-xs text-slate-400 -mt-2">Times are in your timezone ({{ tz }}); students see them in theirs.</p>
+        <p class="text-xs text-slate-500 -mt-2">Times are in your timezone ({{ tz }}); students see them in theirs.</p>
         <div>
           <label class="label">Where</label>
           <div class="grid sm:grid-cols-2 gap-2">
@@ -156,15 +156,15 @@ const stateBadge: Record<string, [string, string]> = {
           </div>
         </div>
         <div v-if="form.provider === 'external'">
-          <label class="label">Meeting link</label>
-          <input v-model="form.external_url" class="input" placeholder="https://zoom.us/j/…" />
-          <p class="text-xs text-slate-400 mt-1">Only enrolled students get this link, and only when the class opens.</p>
+          <label class="label" for="teach-courses-id-liv-form-external_url">Meeting link</label>
+          <input id="teach-courses-id-liv-form-external_url" v-model="form.external_url" class="input" placeholder="https://zoom.us/j/…" />
+          <p class="text-xs text-slate-500 mt-1">Only enrolled students get this link, and only when the class opens.</p>
         </div>
-        <div><label class="label">Description <span class="text-slate-400 font-normal">(optional)</span></label><textarea v-model="form.description" rows="3" class="input" placeholder="Agenda, what to prepare…" /></div>
+        <div><label class="label" for="teach-courses-id-liv-form-description">Description <span class="text-slate-500 font-normal">(optional)</span></label><textarea id="teach-courses-id-liv-form-description" v-model="form.description" rows="3" class="input" placeholder="Agenda, what to prepare…" /></div>
         <div v-if="modal.editing">
-          <label class="label">Recording link <span class="text-slate-400 font-normal">(after the class)</span></label>
-          <input v-model="form.recording_url" class="input" placeholder="YouTube, Vimeo or .mp4 link" />
-          <p class="text-xs text-slate-400 mt-1">Students watch it inside Infohive, with the same watch-only player as lessons.</p>
+          <label class="label" for="teach-courses-id-liv-form-recording_url">Recording link <span class="text-slate-500 font-normal">(after the class)</span></label>
+          <input id="teach-courses-id-liv-form-recording_url" v-model="form.recording_url" class="input" placeholder="YouTube, Vimeo or .mp4 link" />
+          <p class="text-xs text-slate-500 mt-1">Students watch it inside Infohive, with the same watch-only player as lessons.</p>
         </div>
       </div>
       <template #footer>
@@ -182,10 +182,10 @@ const stateBadge: Record<string, [string, string]> = {
         <ul class="divide-y divide-slate-100 border border-slate-100 rounded-xl">
           <li v-for="r in att.rows" :key="r.user.id" class="flex items-center gap-3 px-3 py-2.5 text-sm">
             <span class="w-2 h-2 rounded-full shrink-0" :class="r.present ? 'bg-brand-500' : 'bg-slate-300'" />
-            <span class="flex-1 min-w-0"><span class="font-medium text-slate-800">{{ r.user.full_name }}</span><span class="block text-xs text-slate-400 truncate">{{ r.user.email }}</span></span>
+            <span class="flex-1 min-w-0"><span class="font-medium text-slate-800">{{ r.user.full_name }}</span><span class="block text-xs text-slate-500 truncate">{{ r.user.email }}</span></span>
             <span class="text-xs" :class="r.present ? 'text-brand-700' : 'text-slate-400'">{{ r.present ? `Joined ${new Date(r.first_joined_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : 'Absent' }}</span>
           </li>
-          <li v-if="!att.rows.length" class="px-3 py-6 text-center text-sm text-slate-400">No students enrolled yet.</li>
+          <li v-if="!att.rows.length" class="px-3 py-6 text-center text-sm text-slate-500">No students enrolled yet.</li>
         </ul>
       </template>
     </Modal>

@@ -19,3 +19,6 @@ class Certificate(Base):
     user_name: Mapped[str] = mapped_column(String(255))
     instructor_name: Mapped[str] = mapped_column(String(255), default="")
     issued_at: Mapped[object] = mapped_column(DateTime, default=utcnow)
+    # an admin can revoke a certificate (e.g. issued in error); verification then says so
+    revoked_at: Mapped[object] = mapped_column(DateTime, nullable=True)
+    revoke_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)

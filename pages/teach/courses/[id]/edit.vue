@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Save, Rocket, Undo2, Archive, Trash2, Upload } from 'lucide-vue-next'
+import { Save, Rocket, Undo2, Archive, Trash2, Upload, CheckCircle2, Circle, AlertCircle } from 'lucide-vue-next'
 
 useSeoMeta({ title: 'Course settings - Infohive' })
 definePageMeta({ middleware: 'staff', layout: 'dashboard' })
@@ -20,8 +20,11 @@ const form = ref({
   title: '', summary: '', description: '',
   category_id: null as number | null,
   price: 0, level: 'beginner', language: 'English',
-  tags: '' as string, thumbnail_url: '' as string,
+  tags: '' as string, thumbnail_url: '' as string, outcomes: '' as string,
 })
+const readiness = computed<any[]>(() => course.value?.readiness || [])
+const blocking = computed(() => readiness.value.filter(i => i.required && !i.ok))
+const readyCount = computed(() => readiness.value.filter(i => i.ok).length)
 
 const load = async () => {
   loading.value = true
@@ -42,6 +45,7 @@ const load = async () => {
       language: c.language || 'English',
       tags: Array.isArray(c.tags) ? c.tags.join(', ') : '',
       thumbnail_url: c.thumbnail_url || '',
+      outcomes: Array.isArray(c.outcomes) ? c.outcomes.join('\n') : '',
     }
   } finally { loading.value = false }
 }
@@ -69,6 +73,7 @@ const save = async () => {
       level: f.level,
       language: f.language,
       thumbnail_url: f.thumbnail_url || null,
+      outcomes: f.outcomes.split('\n').map((t: string) => t.trim()).filter(Boolean),
       tags: f.tags.split(',').map((t: string) => t.trim()).filter(Boolean),
     })
     show('Course settings saved')
@@ -150,12 +155,12 @@ const statusStyle = computed(() => ({
       <div class="card p-6 space-y-4">
         <h2 class="font-bold text-slate-800">Details</h2>
         <div>
-          <label class="label">Title</label>
-          <input v-model="form.title" class="input" placeholder="Course title" />
+          <label class="label" for="teach-courses-id-edi-form-title">Title</label>
+          <input id="teach-courses-id-edi-form-title" v-model="form.title" class="input" placeholder="Course title" />
         </div>
         <div>
-          <label class="label">Summary</label>
-          <input v-model="form.summary" class="input" maxlength="500" placeholder="One-line pitch shown on cards (max 500 chars)" />
+          <label class="label" for="teach-courses-id-edi-form-summary">Summary</label>
+          <input id="teach-courses-id-edi-form-summary" v-model="form.summary" class="input" maxlength="500" placeholder="One-line pitch shown on cards (max 500 chars)" />
         </div>
         <div>
           <label class="label">Description</label>
@@ -163,35 +168,39 @@ const statusStyle = computed(() => ({
             <RichEditor v-model="form.description" placeholder="What will students learn? Who is it for?" />
           </ClientOnly>
         </div>
+        <div>
+          <label class="label" for="teach-courses-id-edi-form-outcomes">What learners will learn <span class="font-normal text-slate-500">(one per line, 3-8 recommended)</span></label>
+          <textarea id="teach-courses-id-edi-form-outcomes" v-model="form.outcomes" rows="5" class="input" placeholder="Write clean, readable Python&#10;Use loops, functions and data structures&#10;Build a small command-line project" />
+        </div>
         <div class="grid sm:grid-cols-3 gap-3">
           <div>
-            <label class="label">Category</label>
-            <select v-model="form.category_id" class="input">
+            <label class="label" for="teach-courses-id-edi-form-category_id">Category</label>
+            <select id="teach-courses-id-edi-form-category_id" v-model="form.category_id" class="input">
               <option :value="null">Uncategorized</option>
               <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
           </div>
           <div>
-            <label class="label">Level</label>
-            <select v-model="form.level" class="input">
+            <label class="label" for="teach-courses-id-edi-form-level">Level</label>
+            <select id="teach-courses-id-edi-form-level" v-model="form.level" class="input">
               <option value="beginner">Beginner</option>
               <option value="intermediate">Intermediate</option>
               <option value="advanced">Advanced</option>
             </select>
           </div>
           <div>
-            <label class="label">Price ({{ usePlatform().config.value.currency }}, 0 = free)</label>
-            <input v-model.number="form.price" type="number" min="0" step="0.01" class="input" />
+            <label class="label" for="teach-courses-id-edi-form-price">Price ({{ usePlatform().config.value.currency }}, 0 = free)</label>
+            <input id="teach-courses-id-edi-form-price" v-model.number="form.price" type="number" min="0" step="0.01" class="input" />
           </div>
         </div>
         <div class="grid sm:grid-cols-2 gap-3">
           <div>
-            <label class="label">Language</label>
-            <input v-model="form.language" class="input" />
+            <label class="label" for="teach-courses-id-edi-form-language">Language</label>
+            <input id="teach-courses-id-edi-form-language" v-model="form.language" class="input" />
           </div>
           <div>
-            <label class="label">Tags (comma separated)</label>
-            <input v-model="form.tags" class="input" placeholder="python, basics, coding" />
+            <label class="label" for="teach-courses-id-edi-form-tags">Tags (comma separated)</label>
+            <input id="teach-courses-id-edi-form-tags" v-model="form.tags" class="input" placeholder="python, basics, coding" />
           </div>
         </div>
         <div>
@@ -199,7 +208,7 @@ const statusStyle = computed(() => ({
           <div class="flex items-center gap-4">
             <div class="w-28 h-16 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
               <img v-if="form.thumbnail_url" :src="form.thumbnail_url" class="w-full h-full object-cover" alt="thumbnail" />
-              <span v-else class="text-xs text-slate-400">No image</span>
+              <span v-else class="text-xs text-slate-500">No image</span>
             </div>
             <label class="btn-secondary cursor-pointer text-sm">
               <Upload class="w-4 h-4" /> Upload image
@@ -222,10 +231,10 @@ const statusStyle = computed(() => ({
             <input type="checkbox" class="rounded accent-brand-600" :checked="prereqIds.includes(c.id)" @change="togglePrereq(c.id)" />
             <span class="flex-1 min-w-0">
               <span class="block text-sm font-medium text-slate-700 truncate">{{ c.title }}</span>
-              <span class="block text-xs text-slate-400 truncate">{{ c.instructor?.full_name }} · {{ c.level }}</span>
+              <span class="block text-xs text-slate-500 truncate">{{ c.instructor?.full_name }} · {{ c.level }}</span>
             </span>
           </label>
-          <p v-if="!prereqOptions.length" class="px-3 py-4 text-sm text-slate-400">No published courses match.</p>
+          <p v-if="!prereqOptions.length" class="px-3 py-4 text-sm text-slate-500">No published courses match.</p>
         </div>
         <div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
           <span class="text-xs text-slate-500">{{ prereqIds.length }} selected</span>
@@ -238,9 +247,24 @@ const statusStyle = computed(() => ({
       <!-- status -->
       <div class="card p-6 mt-6">
         <h2 class="font-bold text-slate-800 mb-1">Visibility</h2>
-        <p class="text-sm text-slate-500 mb-4">Only published courses appear in the catalog. Publishing requires at least one section.</p>
+        <p class="text-sm text-slate-600 mb-4">Only published courses appear in the catalog.</p>
+        <div v-if="readiness.length" class="rounded-xl border border-slate-200 p-4 mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-800">Publish checklist</h3>
+            <span class="text-xs text-slate-600">{{ readyCount }} / {{ readiness.length }} done</span>
+          </div>
+          <ul class="grid sm:grid-cols-2 gap-x-6 gap-y-2">
+            <li v-for="i in readiness" :key="i.key" class="flex items-start gap-2 text-sm">
+              <CheckCircle2 v-if="i.ok" class="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
+              <AlertCircle v-else-if="i.required" class="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+              <Circle v-else class="w-4 h-4 text-slate-300 shrink-0 mt-0.5" />
+              <span :class="i.ok ? 'text-slate-500' : 'text-slate-800'">{{ i.label }}<span v-if="i.required && !i.ok" class="text-rose-600 text-xs font-semibold"> · required</span></span>
+            </li>
+          </ul>
+          <p class="text-xs text-slate-500 mt-3">Recommended items make the course page convert better. Save settings to refresh the list.</p>
+        </div>
         <div class="flex flex-wrap gap-2">
-          <button v-if="course.status !== 'published'" class="btn-primary" :disabled="acting" @click="setStatus('publish')">
+          <button v-if="course.status !== 'published'" class="btn-primary" :disabled="acting || blocking.length > 0" :title="blocking.length ? 'Finish the required items first' : ''" @click="setStatus('publish')">
             <Rocket class="w-4 h-4" /> Publish course
           </button>
           <button v-if="course.status === 'published'" class="btn-secondary" :disabled="acting" @click="setStatus('unpublish')">

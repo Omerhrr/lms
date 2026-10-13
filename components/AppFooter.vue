@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Facebook, Linkedin, Instagram, Twitter, Mail, Phone, MapPin } from 'lucide-vue-next'
+import { Facebook, Linkedin, Instagram, Twitter, Youtube, Mail, Phone, MapPin } from 'lucide-vue-next'
 
 const { config } = usePlatform()
 const socials = computed(() => {
@@ -9,6 +9,7 @@ const socials = computed(() => {
     { key: 'linkedin', label: 'LinkedIn', icon: Linkedin, url: s.linkedin },
     { key: 'instagram', label: 'Instagram', icon: Instagram, url: s.instagram },
     { key: 'x', label: 'X', icon: Twitter, url: s.x },
+    { key: 'youtube', label: 'YouTube', icon: Youtube, url: s.youtube },
   ].filter(x => x.url)
 })
 const contact = computed(() => config.value.contact || {})

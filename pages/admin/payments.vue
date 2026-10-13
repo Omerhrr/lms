@@ -32,7 +32,7 @@ const badge: Record<string, string> = {
           Collected: <b class="text-slate-800">{{ fmt(total) }}</b>
         </p>
       </div>
-      <select v-model="status" class="input w-full sm:w-auto">
+      <select v-model="status" aria-label="Filter by status" class="input w-full sm:w-auto">
         <option value="">All statuses</option>
         <option value="success">Successful</option>
         <option value="pending">Pending</option>
@@ -49,8 +49,8 @@ const badge: Record<string, string> = {
         <thead><tr><th>Student</th><th>Course</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="p in filtered" :key="p.reference">
-            <td><div class="font-medium text-slate-800">{{ p.user?.full_name || 'Deleted user' }}</div><div class="text-xs text-slate-400">{{ p.user?.email }}</div></td>
-            <td class="text-sm text-slate-700">{{ p.course_title }}<div class="text-[11px] text-slate-400 font-mono">{{ p.reference }}</div></td>
+            <td><div class="font-medium text-slate-800">{{ p.user?.full_name || 'Deleted user' }}</div><div class="text-xs text-slate-500">{{ p.user?.email }}</div></td>
+            <td class="text-sm text-slate-700">{{ p.course_title }}<div class="text-xs text-slate-500 font-mono">{{ p.reference }}</div></td>
             <td class="font-semibold">{{ p.amount_display }}</td>
             <td><span class="badge capitalize" :class="badge[p.status] || badge.abandoned">{{ p.status }}</span></td>
             <td class="text-sm text-slate-500 whitespace-nowrap">{{ when(p.created_at) }}</td>

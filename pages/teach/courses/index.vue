@@ -26,7 +26,7 @@ const filtered = computed(() =>
       </div>
       <div class="flex gap-2">
         <div class="relative">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input v-model="search" placeholder="Filter…" class="input pl-9 w-48" />
         </div>
         <NuxtLink to="/teach/courses/new" class="btn-primary"><Plus class="w-4 h-4" /> New course</NuxtLink>

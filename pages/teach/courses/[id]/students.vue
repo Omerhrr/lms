@@ -49,7 +49,7 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { m
                 </div>
                 <div>
                   <div class="font-semibold text-slate-800">{{ s.user.full_name }}</div>
-                  <div class="text-xs text-slate-400">{{ s.user.email }}</div>
+                  <div class="text-xs text-slate-500">{{ s.user.email }}</div>
                 </div>
               </div>
             </td>

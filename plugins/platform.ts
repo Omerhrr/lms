@@ -1,4 +1,4 @@
-// Fetch public platform settings (currency, payments on/off) once per visit.
+// Fetch public platform settings (currency, payments on/off) and website copy once per visit.
 export default defineNuxtPlugin(async () => {
-  await usePlatform().load()
+  await Promise.all([usePlatform().load(), useSiteContent().load()])
 })

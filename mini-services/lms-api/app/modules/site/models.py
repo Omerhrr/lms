@@ -1,4 +1,4 @@
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import JSON, DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.shared.base import Base
@@ -18,3 +18,13 @@ class Enquiry(Base):
     message: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="new")   # new | handled
     created_at: Mapped[object] = mapped_column(DateTime, default=utcnow, index=True)
+
+
+class SiteSetting(Base):
+    """One editable website section (see site/content.py), stored as JSON."""
+    __tablename__ = "site_settings"
+
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[object] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    updated_by: Mapped[str | None] = mapped_column(String(255), nullable=True)

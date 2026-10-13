@@ -17,11 +17,14 @@ def _load_models():
 
 def init_db():
     _load_models()
-    from app.core.database import engine, ensure_columns
+    from app.core.database import engine, ensure_columns, secure_tables
     from app.shared.base import Base
     Base.metadata.create_all(bind=engine)
     ensure_columns()
+    changed = secure_tables()
     print(f"✓ schema ready ({len(inspect(engine).get_table_names())} tables)")
+    if changed:
+        print(f"✓ row level security switched on for {changed} table(s)")
 
 
 def check():

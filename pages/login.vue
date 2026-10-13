@@ -13,6 +13,7 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 
+const demoMode = useRuntimeConfig().public.demoMode
 const demoAccounts = [
   { label: 'Admin', email: 'admin@infohive.demo', password: 'Admin123!' },
   { label: 'Instructor', email: 'sarah@infohive.demo', password: 'Teach123!' },
@@ -55,12 +56,12 @@ const submit = async () => {
 
         <form @submit.prevent="submit" class="space-y-4">
           <div>
-            <label class="label">Email</label>
-            <input v-model="email" type="email" class="input" placeholder="you@example.com" autocomplete="email" />
+            <label class="label" for="l-email">Email</label>
+            <input id="l-email" v-model="email" type="email" class="input" placeholder="you@example.com" autocomplete="email" />
           </div>
           <div>
-            <label class="label">Password</label>
-            <input v-model="password" type="password" class="input" placeholder="••••••••" autocomplete="current-password" />
+            <label class="label" for="l-password">Password</label>
+            <input id="l-password" v-model="password" type="password" class="input" placeholder="••••••••" autocomplete="current-password" />
           </div>
           <div class="flex items-center justify-between text-sm">
             <NuxtLink to="/forgot-password" class="text-brand-700 hover:underline">Forgot password?</NuxtLink>
@@ -71,15 +72,15 @@ const submit = async () => {
           </button>
         </form>
 
-        <div class="mt-8">
-          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 text-center">Quick demo access</div>
+        <div v-if="demoMode" class="mt-8">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 text-center">Quick demo access</div>
           <div class="grid grid-cols-3 gap-2">
             <button v-for="d in demoAccounts" :key="d.email" @click="fill(d)"
               class="rounded-lg border border-slate-200 px-2 py-2.5 text-xs font-semibold text-slate-600 hover:border-brand-400 hover:text-brand-700 transition">
               {{ d.label }}
             </button>
           </div>
-          <p class="text-[11px] text-center text-slate-400 mt-2">Click a role to fill credentials, then sign in</p>
+          <p class="text-xs text-center text-slate-500 mt-2">Click a role to fill credentials, then sign in</p>
         </div>
       </div>
     </div>

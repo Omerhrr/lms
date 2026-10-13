@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search, SlidersHorizontal, X } from 'lucide-vue-next'
+import { Search, X } from 'lucide-vue-next'
 
 useSeoMeta({ title: 'Browse courses - Infohive' })
 
@@ -63,6 +63,14 @@ const syncUrl = () => {
 const clearFilters = () => {
   search.value = ''; category_id.value = null; level.value = ''; price.value = ''; sort.value = 'newest'
 }
+const levelNames: Record<string, string> = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' }
+// what the person has narrowed by, shown as removable chips
+const activeChips = computed(() => [
+  ...(search.value ? [{ key: 'search', label: `"${search.value}"`, clear: () => { search.value = '' } }] : []),
+  ...(category_id.value ? [{ key: 'cat', label: categories.value.find(c => c.id === category_id.value)?.name || 'Category', clear: () => { category_id.value = null } }] : []),
+  ...(level.value ? [{ key: 'level', label: levelNames[level.value], clear: () => { level.value = '' } }] : []),
+  ...(price.value ? [{ key: 'price', label: price.value === 'free' ? 'Free' : 'Paid', clear: () => { price.value = '' } }] : []),
+])
 const hasFilters = computed(() => !!(search.value || category_id.value || level.value || price.value || sort.value !== 'newest'))
 
 onMounted(async () => {
@@ -73,45 +81,48 @@ onMounted(async () => {
 
 <template>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
-    <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
-      <div>
-        <h1 class="text-3xl font-extrabold text-slate-900">Browse courses</h1>
-        <p class="text-slate-500 mt-1">{{ total }} course{{ total === 1 ? '' : 's' }} available</p>
-      </div>
-      <div class="relative w-full sm:w-80">
-        <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
-        <input v-model="search" type="search" placeholder="Search courses…" class="input pl-10" />
-      </div>
+    <div class="mb-6">
+      <h1 class="text-3xl font-extrabold text-slate-900">Browse courses</h1>
+      <p class="text-slate-600 mt-1" aria-live="polite">{{ loading ? 'Loading…' : `${total} course${total === 1 ? '' : 's'}${activeChips.length ? ' match' : ' available'}` }}</p>
     </div>
 
-    <!-- filter bar -->
-    <div class="card p-4 mb-8 flex flex-wrap items-center gap-3">
-      <SlidersHorizontal class="w-4.5 h-4.5 text-slate-400" />
-      <select v-model="category_id" class="input w-auto min-w-[140px]">
+    <!-- search + filters in one bar -->
+    <div class="card p-3 sm:p-4 mb-4 grid grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_auto] gap-2.5 sm:gap-3 items-center">
+      <div class="relative col-span-2 lg:col-span-1">
+        <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-500" />
+        <input v-model="search" type="search" aria-label="Search courses" placeholder="Search courses…" class="input pl-10" />
+      </div>
+      <select v-model="category_id" aria-label="Category" class="input lg:w-44">
         <option :value="null">All categories</option>
         <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
-      <select v-model="level" class="input w-auto min-w-[130px]">
+      <select v-model="level" aria-label="Level" class="input lg:w-36">
         <option value="">Any level</option>
         <option value="beginner">Beginner</option>
         <option value="intermediate">Intermediate</option>
         <option value="advanced">Advanced</option>
       </select>
-      <select v-model="price" class="input w-auto min-w-[120px]">
+      <select v-model="price" aria-label="Price" class="input lg:w-32">
         <option value="">Any price</option>
         <option value="free">Free</option>
         <option value="paid">Paid</option>
       </select>
-      <select v-model="sort" class="input w-auto min-w-[140px]">
-        <option value="newest">Newest</option>
-        <option value="popular">Most popular</option>
-        <option value="rating">Highest rated</option>
-        <option value="price_low">Price: low → high</option>
-        <option value="price_high">Price: high → low</option>
+      <select v-model="sort" aria-label="Sort by" class="input lg:w-44">
+        <option value="newest">Sort: Newest</option>
+        <option value="popular">Sort: Most popular</option>
+        <option value="rating">Sort: Highest rated</option>
+        <option value="price_low">Sort: Price, low → high</option>
+        <option value="price_high">Sort: Price, high → low</option>
       </select>
-      <button v-if="hasFilters" @click="clearFilters" class="btn-ghost text-sm text-rose-600 ml-auto">
-        <X class="w-4 h-4" /> Clear
+    </div>
+
+    <div class="min-h-[2rem] mb-6 flex flex-wrap items-center gap-2">
+      <button v-for="c in activeChips" :key="c.key" type="button" @click="c.clear()"
+        class="inline-flex items-center gap-1.5 rounded-full bg-brand-50 text-brand-800 border border-brand-200 pl-3 pr-2 py-1.5 text-sm font-medium hover:bg-brand-100"
+        :aria-label="`Remove filter ${c.label}`">
+        {{ c.label }} <X class="w-3.5 h-3.5" />
       </button>
+      <button v-if="activeChips.length > 1" type="button" class="text-sm font-semibold text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline" @click="clearFilters">Clear all</button>
     </div>
 
     <div v-if="loading" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -119,7 +130,7 @@ onMounted(async () => {
     </div>
 
     <EmptyState v-else-if="courses.length === 0" empty>
-      Try adjusting your search or filters.
+      No courses match these filters. <button v-if="hasFilters" class="text-brand-700 font-semibold hover:underline" @click="clearFilters">Clear filters</button>
     </EmptyState>
 
     <div v-else class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -128,7 +139,7 @@ onMounted(async () => {
 
     <!-- pagination -->
     <div v-if="pages > 1" class="mt-10 flex justify-center gap-1.5">
-      <button v-for="p in pages" :key="p" @click="page = p"
+      <button v-for="p in pages" :key="p" @click="page = p" :aria-label="`Page ${p}`" :aria-current="p === page ? 'page' : undefined"
         class="w-10 h-10 rounded-lg text-sm font-semibold transition"
         :class="p === page ? 'bg-brand-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'">
         {{ p }}

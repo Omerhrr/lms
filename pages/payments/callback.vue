@@ -34,7 +34,7 @@ onMounted(verify)
         <XCircle class="w-14 h-14 mx-auto text-rose-400 mb-3" />
         <h1 class="text-xl font-bold text-slate-900">Payment not confirmed</h1>
         <p class="text-sm text-slate-500 mt-2">{{ error }}</p>
-        <p class="text-xs text-slate-400 mt-3">If you were charged, don't pay again - we'll match it automatically. Reference: <span class="font-mono">{{ reference }}</span></p>
+        <p class="text-xs text-slate-500 mt-3">If you were charged, don't pay again - we'll match it automatically. Reference: <span class="font-mono">{{ reference }}</span></p>
         <NuxtLink to="/courses" class="btn-secondary mt-6 inline-flex">Back to courses</NuxtLink>
       </template>
 
@@ -48,7 +48,7 @@ onMounted(verify)
         <CheckCircle2 class="w-14 h-14 mx-auto text-brand-500 mb-3" />
         <h1 class="text-xl font-bold text-slate-900">Payment successful 🎉</h1>
         <p class="text-sm text-slate-500 mt-2">You're enrolled in <b class="text-slate-700">{{ payment.course_title }}</b>. A receipt is on its way to your email.</p>
-        <p class="text-xs text-slate-400 mt-3">{{ payment.amount_display }} · <span class="font-mono">{{ payment.reference }}</span></p>
+        <p class="text-xs text-slate-500 mt-3">{{ payment.amount_display }} · <span class="font-mono">{{ payment.reference }}</span></p>
         <NuxtLink v-if="payment.course_slug" :to="`/learn/${payment.course_slug}`" class="btn-primary mt-6 inline-flex">Start learning</NuxtLink>
       </template>
 

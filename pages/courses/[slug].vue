@@ -2,7 +2,7 @@
 import {
   Clock, Users, Globe, BarChart3, PlayCircle, CheckCircle2, FileDown, Star,
   GraduationCap, MessageSquare, Megaphone, Lock, Check, Eye, FileText,
-  ClipboardList, Upload, Send, Pin, PinOff, Unlock, Trash2, ArrowLeft
+  ClipboardList, Upload, Send, Pin, PinOff, Unlock, Trash2, ArrowLeft, ChevronDown
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -38,6 +38,7 @@ const load = async () => {
   loading.value = true
   try {
     course.value = await api.get<any>(`/courses/${route.params.slug}`, undefined, true)
+    if (course.value?.sections?.length) expanded.value = new Set([course.value.sections[0].id])
     if (!course.value) { loading.value = false; return }
     if (auth.hasSession.value) await auth.fetchMe()
     if (course.value.is_enrolled) {
@@ -66,6 +67,51 @@ const load = async () => {
 const { config: platform, money } = usePlatform()
 const isPaid = computed(() => (course.value?.price || 0) > 0)
 const canCheckout = computed(() => isPaid.value && platform.value.payments_enabled)
+const needsRequest = computed(() => isPaid.value && !platform.value.payments_enabled)
+
+const primaryLabel = computed(() => enrolling.value
+  ? (canCheckout.value ? 'Opening secure checkout…' : 'Enrolling…')
+  : !isPaid.value ? 'Enroll for free' : canCheckout.value ? 'Buy now' : 'Request access')
+const primaryHint = computed(() => !isPaid.value ? 'Start right away - learn at your own pace'
+  : canCheckout.value ? 'Secure payment by Paystack · card, bank transfer or USSD'
+    : "We'll contact you with payment details")
+const primaryAction = () => (needsRequest.value ? openRequest() : enroll())
+
+const counts = computed(() => {
+  const c: Record<string, number> = {}
+  for (const s of course.value?.sections || []) for (const l of s.lessons) c[l.type] = (c[l.type] || 0) + 1
+  return c
+})
+
+// ---------- request access (payments off) ----------
+const requestOpen = ref(false)
+const requestSent = ref(false)
+const requestSending = ref(false)
+const requestForm = ref({ name: '', email: '', phone: '', message: '' })
+const openRequest = () => {
+  requestSent.value = false
+  requestForm.value = {
+    name: auth.user.value?.full_name || '', email: auth.user.value?.email || '', phone: '',
+    message: `I'd like to enroll in "${course.value.title}". Please send me the payment details.`,
+  }
+  requestOpen.value = true
+}
+const sendRequest = async () => {
+  const f = requestForm.value
+  if (f.name.trim().length < 2 || !/^\S+@\S+\.\S+$/.test(f.email)) return show('Please enter your name and a valid email', 'error')
+  requestSending.value = true
+  try {
+    await api.post('/contact', { name: f.name, email: f.email, phone: f.phone || null, topic: 'LMS / Learning Enquiry',
+      subject: `Enrollment request: ${course.value.title}`, message: f.message.length >= 10 ? f.message : `Enrollment request for ${course.value.title}`,
+      course_id: course.value.id })
+    requestSent.value = true
+  } catch { /* toast shown */ } finally { requestSending.value = false }
+}
+
+const allOpen = computed(() => !!course.value?.sections.length && course.value.sections.every((s: any) => expanded.value.has(s.id)))
+const toggleAll = () => {
+  expanded.value = allOpen.value ? new Set() : new Set(course.value.sections.map((s: any) => s.id))
+}
 
 const enroll = async () => {
   if (!auth.isLoggedIn.value) return navigateTo({ path: '/login', query: { redirect: route.fullPath } })
@@ -94,8 +140,10 @@ const canWatch = (l: any) => !l.unlocks_at && (l.is_preview || course.value?.is_
 const fmtUnlock = (iso: string) => new Date(iso + (iso.endsWith('Z') ? '' : 'Z')).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 
 const toggle = (sid: number) => {
-  if (expanded.value.has(sid)) expanded.value.delete(sid)
-  else expanded.value.add(sid)
+  const next = new Set(expanded.value)
+  if (next.has(sid)) next.delete(sid)
+  else next.add(sid)
+  expanded.value = next
 }
 
 const lessonIcon = (t: string) => (t === 'video' ? PlayCircle : t === 'quiz' ? BarChart3 : t === 'file' ? FileDown : FileText)
@@ -207,149 +255,142 @@ watch(() => route.params.slug, load)
   <div v-else>
     <!-- hero -->
     <section class="bg-slate-900 text-white">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-12 grid lg:grid-cols-3 gap-10">
-        <div class="lg:col-span-2">
-          <div class="flex flex-wrap items-center gap-2 text-xs mb-4">
-            <span v-if="course.category" class="badge bg-brand-500/20 text-brand-300 border border-brand-400/30">{{ course.category.name }}</span>
-            <span class="badge bg-white/10 text-slate-300">{{ course.level }}</span>
-            <span v-if="course.status !== 'published'" class="badge bg-amber-500/20 text-amber-300">{{ course.status }} (preview)</span>
-          </div>
-          <h1 class="text-3xl lg:text-4xl font-extrabold leading-tight">{{ course.title }}</h1>
-          <p class="mt-4 text-slate-300 text-lg leading-relaxed">{{ course.summary }}</p>
-          <div class="mt-5 flex flex-wrap items-center gap-5 text-sm text-slate-300">
-            <span class="flex items-center gap-1.5"><RatingStars :rating="course.rating" size="w-4 h-4" />
-              <b class="text-white">{{ course.rating || 'New' }}</b>&nbsp;({{ course.review_count }} reviews)</span>
-            <span class="flex items-center gap-1.5"><Users class="w-4 h-4" /> {{ course.enrollment_count }} students</span>
-            <span class="flex items-center gap-1.5"><Clock class="w-4 h-4" /> {{ Math.round(course.total_minutes / 60 * 10) / 10 }}h content</span>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-10 lg:pb-14 grid lg:grid-cols-[1fr_22rem] gap-10">
+        <div class="min-w-0 lg:min-h-[22rem]">
+          <nav class="text-xs text-slate-400 mb-4 flex items-center gap-1.5" aria-label="Breadcrumb">
+            <NuxtLink to="/courses" class="hover:text-white">Courses</NuxtLink>
+            <template v-if="course.category"><span>/</span>
+              <NuxtLink :to="{ path: '/courses', query: { category_id: course.category.id } }" class="hover:text-white">{{ course.category.name }}</NuxtLink></template>
+          </nav>
+          <h1 class="text-3xl lg:text-[2.5rem] font-extrabold leading-tight tracking-tight">{{ course.title }}</h1>
+          <p class="mt-3 text-slate-300 text-lg leading-relaxed max-w-3xl">{{ course.summary }}</p>
+          <div class="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-300">
+            <span v-if="course.review_count" class="flex items-center gap-1.5">
+              <b class="text-amber-300">{{ course.rating.toFixed(1) }}</b>
+              <RatingStars :rating="course.rating" size="w-4 h-4" />
+              <button class="underline-offset-2 hover:underline" @click="tab = 'reviews'">({{ plural(course.review_count, 'review') }})</button>
+            </span>
+            <span v-else class="badge bg-sky-400/15 text-sky-200">New course</span>
+            <span class="flex items-center gap-1.5"><Users class="w-4 h-4" /> {{ plural(course.enrollment_count, 'learner') }}</span>
+            <span class="flex items-center gap-1.5"><Clock class="w-4 h-4" /> {{ fmtMinutes(course.total_minutes) }}</span>
+            <span class="flex items-center gap-1.5 capitalize"><BarChart3 class="w-4 h-4" /> {{ course.level }}</span>
             <span class="flex items-center gap-1.5"><Globe class="w-4 h-4" /> {{ course.language }}</span>
           </div>
           <div class="mt-5 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-brand-600 flex items-center justify-center font-bold uppercase">
-              {{ course.instructor.full_name.slice(0, 1) }}
-            </div>
+            <div class="w-10 h-10 rounded-full bg-brand-600 flex items-center justify-center font-bold uppercase">{{ course.instructor.full_name.slice(0, 1) }}</div>
             <div>
               <div class="font-semibold text-sm">{{ course.instructor.full_name }}</div>
               <div class="text-xs text-slate-400">{{ course.instructor.headline || 'Instructor' }}</div>
             </div>
+            <span v-if="course.status !== 'published'" class="badge bg-amber-500/20 text-amber-300 ml-2 capitalize">{{ course.status }} - only you can see this</span>
           </div>
-        </div>
 
-        <!-- enroll card -->
-        <div class="lg:justify-self-end w-full max-w-sm">
-          <div class="card !bg-white text-slate-800 overflow-hidden">
-            <div class="h-40 bg-gradient-to-br from-brand-500 to-slate-800 relative flex items-center justify-center">
-              <img v-if="safeUrl(course.thumbnail_url)" :src="safeUrl(course.thumbnail_url)" class="w-full h-full object-cover" alt="" />
-              <GraduationCap v-else class="w-12 h-12 text-white/40" />
-            </div>
-            <div class="p-5">
-              <div class="flex items-baseline gap-2 mb-4">
-                <span class="text-3xl font-extrabold">{{ money(course.price) }}</span>
-                <span v-if="course.price === 0" class="badge bg-amber-100 text-amber-800">No credit card needed</span>
-              </div>
-
-              <template v-if="course.is_enrolled">
-                <NuxtLink v-if="course.sections.length && course.sections[0].lessons.length"
-                  :to="`/learn/${course.slug}/${course.sections[0].lessons[0].id}`" class="btn-primary w-full py-3">
-                  <PlayCircle class="w-5 h-5" /> Go to course
-                </NuxtLink>
-              </template>
-              <template v-else-if="course.can_manage">
-                <NuxtLink :to="`/teach/courses/${course.id}/edit`" class="btn-secondary w-full py-3">Manage this course</NuxtLink>
-              </template>
-              <div v-else-if="course.prerequisites?.length && !course.prerequisites_met" class="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
-                <p class="font-semibold flex items-center gap-1.5"><Lock class="w-4 h-4" /> Complete these first</p>
-                <ul class="mt-2 space-y-1">
-                  <li v-for="p in course.prerequisites" :key="p.id" class="flex items-center gap-2">
-                    <component :is="p.completed ? CheckCircle2 : Lock" class="w-3.5 h-3.5 shrink-0" :class="p.completed ? 'text-brand-600' : 'text-amber-600'" />
-                    <NuxtLink :to="`/courses/${p.slug}`" class="hover:underline">{{ p.title }}</NuxtLink>
-                  </li>
-                </ul>
-              </div>
-              <button v-else class="btn-primary w-full py-3 text-base" :disabled="enrolling" @click="enroll">
-                {{ enrolling ? (canCheckout ? 'Opening secure checkout…' : 'Enrolling…') : (!isPaid ? 'Enroll for free' : canCheckout ? `Buy now · ${money(course.price)}` : `Enroll · ${money(course.price)}`) }}
-              </button>
-
-              <p v-if="canCheckout && !course.is_enrolled && !course.can_manage" class="mt-2 text-xs text-slate-500 text-center">
-                Secure payment by Paystack · card, bank transfer or USSD
-              </p>
-              <p v-if="course.prerequisites?.length && course.prerequisites_met" class="mt-3 text-xs text-slate-500">
-                Requires: {{ course.prerequisites.map((p: any) => p.title).join(', ') }} ✓
-              </p>
-              <ul class="mt-4 space-y-2 text-sm text-slate-600">
-                <li class="flex gap-2"><CheckCircle2 class="w-4 h-4 text-brand-600 shrink-0" /> {{ course.lesson_count }} lessons across {{ course.sections.length }} sections</li>
-                <li class="flex gap-2"><CheckCircle2 class="w-4 h-4 text-brand-600 shrink-0" /> Quizzes with instant auto-grading</li>
-                <li class="flex gap-2"><CheckCircle2 class="w-4 h-4 text-brand-600 shrink-0" /> Certificate of completion</li>
-                <li class="flex gap-2"><CheckCircle2 class="w-4 h-4 text-brand-600 shrink-0" /> Q&A discussion board</li>
-              </ul>
-            </div>
+          <div v-if="course.outcomes?.length" class="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+            <h2 class="font-bold text-white">What you'll learn</h2>
+            <ul class="mt-3 grid sm:grid-cols-2 gap-x-6 gap-y-2.5 text-sm text-slate-200">
+              <li v-for="o in course.outcomes" :key="o" class="flex gap-2.5"><Check class="w-4.5 h-4.5 text-brand-400 shrink-0 mt-0.5" /><span>{{ o }}</span></li>
+            </ul>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- tabs -->
-    <div class="bg-white border-b border-slate-200 sticky top-16 z-30">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto">
-        <button v-for="t in [
-          ['overview', 'Overview'], ['curriculum', 'Curriculum'],
-          ...(course.is_enrolled || course.can_manage ? [['live', 'Live classes'], ['discussion', 'Q&A'], ['assignments', 'Assignments'], ['announcements', 'Announcements']] : []),
-          ['reviews', 'Reviews'],
-        ]" :key="t[0]" @click="tab = t[0] as any"
-          class="px-4 py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap"
-          :class="tab === t[0] ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-800'">
-          {{ t[1] }}
-        </button>
-      </div>
-    </div>
-
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10 min-h-[300px]">
-      <!-- overview -->
-      <div v-if="tab === 'overview'" class="grid lg:grid-cols-3 gap-10">
-        <div class="lg:col-span-2 rich-text text-slate-700" v-html="course.description || `<p>No description yet.</p>`" />
-        <div class="card p-5 h-fit">
-          <h3 class="font-bold text-slate-800 mb-3">Course details</h3>
-          <ul class="space-y-3 text-sm text-slate-600">
-            <li class="flex justify-between"><span class="text-slate-400">Level</span><b class="capitalize">{{ course.level }}</b></li>
-            <li class="flex justify-between"><span class="text-slate-400">Language</span><b>{{ course.language }}</b></li>
-            <li class="flex justify-between"><span class="text-slate-400">Lessons</span><b>{{ course.lesson_count }}</b></li>
-            <li class="flex justify-between"><span class="text-slate-400">Duration</span><b>{{ Math.round(course.total_minutes / 60 * 10) / 10 }} hours</b></li>
-            <li class="flex justify-between"><span class="text-slate-400">Category</span><b>{{ course.category?.name || '-' }}</b></li>
-          </ul>
-          <div v-if="course.tags?.length" class="mt-4 flex flex-wrap gap-1.5">
-            <span v-for="t in course.tags" :key="t" class="badge bg-slate-100 text-slate-600">#{{ t }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- curriculum -->
-      <div v-else-if="tab === 'curriculum'" class="max-w-3xl mx-auto">
-        <div class="space-y-3">
-          <div v-for="s in course.sections" :key="s.id" class="card overflow-hidden">
-            <button class="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition" @click="toggle(s.id)">
-              <span class="font-bold text-slate-800 text-left">{{ s.title }}
-                <span class="ml-2 text-xs font-normal text-slate-400">{{ s.lessons.length }} lessons</span>
-              </span>
-              <component :is="expanded.has(s.id) ? Check : Eye" class="w-4 h-4 text-slate-400" />
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-[1fr_22rem] gap-10 pb-24 lg:pb-10">
+      <!-- main column -->
+      <div class="min-w-0 order-2 lg:order-1">
+        <!-- tabs -->
+        <div class="bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur border-b border-slate-200 sticky top-16 z-20 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div class="flex gap-1 overflow-x-auto">
+            <button v-for="t in [
+              ['overview', 'Overview'],
+              ...(course.is_enrolled || course.can_manage ? [['live', 'Live classes'], ['discussion', 'Q&A'], ['assignments', 'Assignments'], ['announcements', 'Announcements']] : []),
+              ['reviews', course.review_count ? `Reviews (${course.review_count})` : 'Reviews'],
+            ]" :key="t[0]" @click="tab = t[0] as any"
+              class="px-4 py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap"
+              :class="tab === t[0] ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-800'">
+              {{ t[1] }}
             </button>
-            <div v-if="expanded.has(s.id)" class="border-t border-slate-100 divide-y divide-slate-50">
-              <div v-for="l in s.lessons" :key="l.id" class="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 px-4 sm:px-5 py-3">
-                <component :is="lessonIcon(l.type)" class="w-4.5 h-4.5 shrink-0" :class="canWatch(l) ? 'text-brand-600' : 'text-slate-300'" />
-                <span class="text-sm flex-1 min-w-0" :class="canWatch(l) ? 'text-slate-700' : 'text-slate-400'">{{ l.title }}</span>
-                <span v-if="l.is_preview" class="badge bg-brand-50 text-brand-700">Preview</span>
-                <span class="text-xs text-slate-400">{{ l.duration_minutes }} min</span>
-                <span v-if="l.unlocks_at" class="badge bg-amber-50 text-amber-700">Opens {{ fmtUnlock(l.unlocks_at) }}</span>
-                <span v-else-if="l.drip_days && !course.is_enrolled" class="text-xs text-slate-400">day {{ l.drip_days }}</span>
-                <NuxtLink v-if="canWatch(l)" :to="`/learn/${course.slug}/${l.id}`"
-                  class="text-xs font-semibold text-brand-700 hover:underline">{{ l.type === 'video' ? 'Watch' : 'Open' }}</NuxtLink>
-                <Lock v-else class="w-3.5 h-3.5 text-slate-300" />
-              </div>
-            </div>
           </div>
         </div>
-      </div>
+
+        <div class="py-8 min-h-[300px]">
+          <!-- overview: curriculum first (what buyers check), then description and instructor -->
+          <div v-if="tab === 'overview' || tab === 'curriculum'" class="space-y-10">
+            <section>
+              <div class="flex flex-wrap items-end justify-between gap-2 mb-3">
+                <h2 class="text-xl font-bold text-slate-900">Course content</h2>
+                <p class="text-sm text-slate-500">{{ plural(course.sections.length, 'section') }} · {{ plural(course.lesson_count, 'lesson') }} · {{ fmtMinutes(course.total_minutes) }}
+                  <button class="ml-2 font-semibold text-brand-700 hover:underline" @click="toggleAll">{{ allOpen ? 'Collapse all' : 'Expand all' }}</button></p>
+              </div>
+              <div class="card divide-y divide-slate-100 overflow-hidden">
+                <div v-for="s in course.sections" :key="s.id">
+                  <button class="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 bg-slate-50/70 hover:bg-slate-100/70 transition text-left" :aria-expanded="expanded.has(s.id)" @click="toggle(s.id)">
+                    <span class="flex items-center gap-2 min-w-0">
+                      <ChevronDown class="w-4 h-4 text-slate-500 shrink-0 transition" :class="expanded.has(s.id) ? '' : '-rotate-90'" />
+                      <span class="font-semibold text-slate-800 truncate">{{ s.title }}</span>
+                    </span>
+                    <span class="text-xs text-slate-500 shrink-0">{{ plural(s.lessons.length, 'lesson') }} · {{ fmtMinutes(s.lessons.reduce((a: number, l: any) => a + (l.duration_minutes || 0), 0)) }}</span>
+                  </button>
+                  <div v-if="expanded.has(s.id)" class="divide-y divide-slate-50">
+                    <div v-for="l in s.lessons" :key="l.id" class="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 px-4 sm:px-5 py-3">
+                      <component :is="lessonIcon(l.type)" class="w-4.5 h-4.5 shrink-0" :class="canWatch(l) ? 'text-brand-600' : 'text-slate-400'" />
+                      <span class="text-sm flex-1 min-w-0" :class="canWatch(l) ? 'text-slate-800' : 'text-slate-600'">{{ l.title }}</span>
+                      <span v-if="l.is_preview && !course.is_enrolled" class="badge bg-brand-50 text-brand-700">Free preview</span>
+                      <span v-if="l.unlocks_at" class="badge bg-amber-50 text-amber-700">Opens {{ fmtUnlock(l.unlocks_at) }}</span>
+                      <span v-else-if="l.drip_days && !course.is_enrolled" class="text-xs text-slate-500">Unlocks day {{ l.drip_days }}</span>
+                      <span class="text-xs text-slate-500 w-14 text-right">{{ fmtMinutes(l.duration_minutes) }}</span>
+                      <NuxtLink v-if="canWatch(l)" :to="`/learn/${course.slug}/${l.id}`" class="text-xs font-semibold text-brand-700 hover:underline w-12 text-right">{{ l.type === 'video' ? 'Watch' : 'Open' }}</NuxtLink>
+                      <Lock v-else class="w-3.5 h-3.5 text-slate-400 w-12" aria-label="Locked" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section v-if="course.description">
+              <h2 class="text-xl font-bold text-slate-900 mb-3">About this course</h2>
+              <div class="rich-text text-slate-700" v-html="course.description" />
+            </section>
+
+            <section v-if="course.prerequisites?.length">
+              <h2 class="text-xl font-bold text-slate-900 mb-3">Before you start</h2>
+              <ul class="space-y-2">
+                <li v-for="p in course.prerequisites" :key="p.id" class="flex items-center gap-2 text-sm">
+                  <component :is="p.completed ? CheckCircle2 : Lock" class="w-4 h-4 shrink-0" :class="p.completed ? 'text-brand-600' : 'text-amber-600'" />
+                  Complete <NuxtLink :to="`/courses/${p.slug}`" class="font-semibold text-brand-700 hover:underline">{{ p.title }}</NuxtLink>
+                </li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 class="text-xl font-bold text-slate-900 mb-3">Your instructor</h2>
+              <div class="card p-5 flex gap-4">
+                <div class="w-14 h-14 rounded-full bg-brand-600 text-white text-xl flex items-center justify-center font-bold uppercase shrink-0">{{ course.instructor.full_name.slice(0, 1) }}</div>
+                <div class="min-w-0">
+                  <p class="font-bold text-slate-900">{{ course.instructor.full_name }}</p>
+                  <p class="text-sm text-brand-700">{{ course.instructor.headline || 'Instructor' }}</p>
+                  <p v-if="course.instructor.bio" class="mt-2 text-sm text-slate-600 leading-relaxed">{{ course.instructor.bio }}</p>
+                </div>
+              </div>
+            </section>
+
+            <section v-if="reviews.length">
+              <div class="flex items-end justify-between gap-2 mb-3">
+                <h2 class="text-xl font-bold text-slate-900">What learners say</h2>
+                <button class="text-sm font-semibold text-brand-700 hover:underline" @click="tab = 'reviews'">All reviews</button>
+              </div>
+              <div class="grid sm:grid-cols-2 gap-3">
+                <figure v-for="r in reviews.slice(0, 2)" :key="r.id" class="card p-5">
+                  <RatingStars :rating="r.rating" size="w-3.5 h-3.5" />
+                  <blockquote class="mt-2 text-sm text-slate-700 leading-relaxed">“{{ r.comment }}”</blockquote>
+                  <figcaption class="mt-3 text-xs font-semibold text-slate-600">{{ r.user.full_name }}</figcaption>
+                </figure>
+              </div>
+            </section>
+          </div>
 
       <!-- discussion -->
-      <div v-else-if="tab === 'discussion'" class="max-w-3xl mx-auto space-y-6">
+      <div v-else-if="tab === 'discussion'" class="space-y-6">
         <div class="card p-5">
           <h3 class="font-bold text-slate-800 mb-3 flex items-center gap-2"><MessageSquare class="w-4.5 h-4.5 text-brand-600" /> Ask a question</h3>
           <input v-model="threadForm.title" class="input mb-2" placeholder="Question title…" />
@@ -374,7 +415,7 @@ watch(() => route.params.slug, load)
       </div>
 
       <!-- assignments -->
-      <div v-else-if="tab === 'assignments'" class="max-w-3xl mx-auto space-y-5">
+      <div v-else-if="tab === 'assignments'" class="space-y-5">
         <EmptyState v-if="assignments.length === 0" empty>No assignments in this course (yet).</EmptyState>
         <div v-for="a in assignments" :key="a.id" class="card p-5">
           <div class="flex items-start justify-between gap-3 flex-wrap">
@@ -427,7 +468,7 @@ watch(() => route.params.slug, load)
       </div>
 
       <!-- announcements -->
-      <div v-else-if="tab === 'live'" class="max-w-3xl mx-auto">
+      <div v-else-if="tab === 'live'">
         <div class="flex items-center justify-between gap-3 mb-4">
           <h3 class="font-bold text-slate-800">Live classes</h3>
           <NuxtLink v-if="course.can_manage" :to="`/teach/courses/${course.id}/live`" class="btn-secondary text-sm">Schedule a class</NuxtLink>
@@ -435,7 +476,7 @@ watch(() => route.params.slug, load)
         <LiveSessionList :course-id="course.id" />
       </div>
 
-      <div v-else-if="tab === 'announcements'" class="max-w-3xl mx-auto space-y-4">
+      <div v-else-if="tab === 'announcements'" class="space-y-4">
         <EmptyState v-if="announcements.length === 0" empty>No announcements yet.</EmptyState>
         <div v-for="a in announcements" :key="a.id" class="card p-5 flex gap-4">
           <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
@@ -450,7 +491,7 @@ watch(() => route.params.slug, load)
       </div>
 
       <!-- reviews -->
-      <div v-else-if="tab === 'reviews'" class="max-w-3xl mx-auto space-y-6">
+      <div v-else-if="tab === 'reviews'" class="space-y-6">
         <div v-if="course.is_enrolled && !course.has_reviewed" class="card p-5">
           <h3 class="font-bold text-slate-800 mb-3">Rate this course</h3>
           <div class="flex gap-1 mb-3">
@@ -473,11 +514,86 @@ watch(() => route.params.slug, load)
               <RatingStars :rating="r.rating" size="w-3.5 h-3.5" />
             </div>
             <p class="text-sm text-slate-600 mt-1.5">{{ r.comment }}</p>
-            <p class="text-xs text-slate-400 mt-2">{{ formatDate(r.created_at) }}</p>
+            <p class="text-xs text-slate-500 mt-2">{{ formatDate(r.created_at) }}</p>
           </div>
         </div>
       </div>
+        </div>
+      </div>
+
+      <!-- price / action card: overlaps the hero and stays in view while scrolling (desktop) -->
+      <aside class="order-1 lg:order-2 lg:-mt-[21rem] relative z-10">
+        <div class="lg:sticky lg:top-24 card !bg-white overflow-hidden shadow-xl">
+          <div class="aspect-video bg-slate-900">
+            <VideoPlayer v-if="course.preview && !course.is_enrolled" :url="course.preview.video_url" class="!rounded-none" />
+            <CourseCover v-else :title="course.title" :category="course.category?.name" :thumbnail-url="safeUrl(course.thumbnail_url)" icon-class="w-14 h-14" />
+          </div>
+          <div class="p-5">
+            <p v-if="course.preview && !course.is_enrolled" class="text-xs text-slate-500 -mt-1 mb-3">▶ Free preview: {{ course.preview.title }}</p>
+            <div v-if="!course.is_enrolled && !course.can_manage" class="flex items-baseline gap-2 mb-4">
+              <span class="text-3xl font-extrabold text-slate-900">{{ money(course.price) }}</span>
+              <span v-if="!isPaid" class="text-sm text-slate-500">No card needed</span>
+            </div>
+
+            <template v-if="course.is_enrolled">
+              <p class="text-sm text-slate-600 mb-3">You're enrolled in this course.</p>
+              <NuxtLink :to="`/learn/${course.slug}`" class="btn-primary w-full py-3"><PlayCircle class="w-5 h-5" /> Continue learning</NuxtLink>
+            </template>
+            <NuxtLink v-else-if="course.can_manage" :to="`/teach/courses/${course.id}/edit`" class="btn-secondary w-full py-3">Manage this course</NuxtLink>
+            <div v-else-if="course.prerequisites?.length && !course.prerequisites_met" class="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+              <p class="font-semibold flex items-center gap-1.5"><Lock class="w-4 h-4" /> Complete these first</p>
+              <ul class="mt-2 space-y-1">
+                <li v-for="p in course.prerequisites" :key="p.id" class="flex items-center gap-2">
+                  <component :is="p.completed ? CheckCircle2 : Lock" class="w-3.5 h-3.5 shrink-0" :class="p.completed ? 'text-brand-600' : 'text-amber-600'" />
+                  <NuxtLink :to="`/courses/${p.slug}`" class="hover:underline">{{ p.title }}</NuxtLink>
+                </li>
+              </ul>
+            </div>
+            <button v-else class="btn-primary w-full py-3 text-base" :disabled="enrolling" @click="primaryAction">{{ primaryLabel }}</button>
+
+            <p v-if="!course.is_enrolled && !course.can_manage" class="mt-2 text-xs text-slate-500 text-center">{{ primaryHint }}</p>
+
+            <ul class="mt-5 pt-4 border-t border-slate-100 space-y-2.5 text-sm text-slate-700">
+              <li class="flex gap-2.5"><Clock class="w-4 h-4 text-brand-600 shrink-0 mt-0.5" /> {{ fmtMinutes(course.total_minutes) }} of content · {{ plural(course.lesson_count, 'lesson') }}</li>
+              <li v-if="counts.quiz" class="flex gap-2.5"><BarChart3 class="w-4 h-4 text-brand-600 shrink-0 mt-0.5" /> {{ plural(counts.quiz, 'quiz', 'quizzes') }} with instant feedback</li>
+              <li v-if="counts.file" class="flex gap-2.5"><FileDown class="w-4 h-4 text-brand-600 shrink-0 mt-0.5" /> {{ plural(counts.file, 'downloadable resource') }}</li>
+              <li class="flex gap-2.5"><GraduationCap class="w-4 h-4 text-brand-600 shrink-0 mt-0.5" /> Certificate of completion</li>
+              <li class="flex gap-2.5"><MessageSquare class="w-4 h-4 text-brand-600 shrink-0 mt-0.5" /> Q&amp;A with the instructor</li>
+            </ul>
+          </div>
+        </div>
+      </aside>
     </div>
+
+    <!-- phones: price + action always in reach -->
+    <div v-if="!course.is_enrolled && !course.can_manage && !(course.prerequisites?.length && !course.prerequisites_met)"
+      class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 px-4 py-3 flex items-center gap-3"
+      style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+      <div class="min-w-0">
+        <div class="font-extrabold text-slate-900 leading-tight">{{ money(course.price) }}</div>
+        <div class="text-xs text-slate-500 truncate">{{ fmtMinutes(course.total_minutes) }} · {{ plural(course.lesson_count, 'lesson') }}</div>
+      </div>
+      <button class="btn-primary flex-1 py-3" :disabled="enrolling" @click="primaryAction">{{ primaryLabel }}</button>
+    </div>
+
+    <!-- request access (paid course while online payment is off) -->
+    <Modal :open="requestOpen" title="Request access" @close="requestOpen = false">
+      <div v-if="requestSent" class="py-6 text-center">
+        <CheckCircle2 class="w-12 h-12 text-brand-500 mx-auto" />
+        <p class="mt-3 font-bold text-slate-900">Request sent</p>
+        <p class="mt-1 text-sm text-slate-600">We'll contact you with payment details, then enroll you in <b>{{ course.title }}</b>.</p>
+      </div>
+      <form v-else class="space-y-3" @submit.prevent="sendRequest">
+        <p class="text-sm text-slate-600">Online payment isn't available for this course yet. Leave your details and our team will help you enroll.</p>
+        <div><label class="label" for="ra-name">Name</label><input id="ra-name" v-model="requestForm.name" class="input" required /></div>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div><label class="label" for="ra-email">Email</label><input id="ra-email" v-model="requestForm.email" type="email" class="input" required /></div>
+          <div><label class="label" for="ra-phone">Phone <span class="font-normal text-slate-400">(optional)</span></label><input id="ra-phone" v-model="requestForm.phone" type="tel" class="input" /></div>
+        </div>
+        <div><label class="label" for="ra-msg">Message</label><textarea id="ra-msg" v-model="requestForm.message" rows="3" class="input" /></div>
+        <button class="btn-primary w-full" :disabled="requestSending">{{ requestSending ? 'Sending…' : 'Send request' }}</button>
+      </form>
+    </Modal>
 
     <!-- thread detail modal -->
     <Modal :open="!!openThread" :title="openThread?.title || 'Discussion'" wide @close="closeThread">

@@ -148,7 +148,7 @@ onBeforeUnmount(() => { clearInterval(tick); try { jitsi?.dispose() } catch { /*
           <div class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center"
             :class="session.state === 'live' ? 'bg-rose-500' : 'bg-brand-600'"><Video class="w-8 h-8 text-white" /></div>
           <h1 class="mt-4 text-xl sm:text-2xl font-bold">{{ session.title }}</h1>
-          <p class="mt-1 text-slate-400 text-sm">{{ whenLong(session.starts_at) }} · {{ session.duration_minutes }} min
+          <p class="mt-1 text-slate-400 text-sm">{{ whenLong(session.starts_at) }} · {{ fmtMinutes(session.duration_minutes) }}
             <span v-if="session.host"> · with {{ session.host.full_name }}</span></p>
           <p v-if="session.description" class="mt-4 text-slate-300 text-sm leading-relaxed whitespace-pre-wrap text-left sm:text-center">{{ session.description }}</p>
 

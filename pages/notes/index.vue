@@ -54,7 +54,7 @@ const when = (iso: string) => new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLo
           class="px-3.5 py-1.5 rounded-lg text-sm font-semibold capitalize transition flex items-center gap-1.5"
           :class="tab === t ? 'bg-white shadow text-slate-900' : 'text-slate-500'">
           <component :is="t === 'notes' ? NotebookPen : Bookmark" class="w-4 h-4" />
-          {{ t }} <span class="text-xs text-slate-400">{{ t === 'notes' ? notes.length : bookmarks.length }}</span>
+          {{ t }} <span class="text-xs text-slate-500">{{ t === 'notes' ? notes.length : bookmarks.length }}</span>
         </button>
       </div>
       <input v-model="search" class="input sm:!w-64 flex-1 sm:flex-none" placeholder="Search…" />
@@ -72,14 +72,14 @@ const when = (iso: string) => new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLo
         <div v-for="n in filteredNotes" :key="n.id" class="card p-4 sm:p-5">
           <div class="flex items-start gap-3">
             <div class="min-w-0 flex-1">
-              <p class="text-xs text-slate-400 truncate">{{ n.course_title }}</p>
+              <p class="text-xs text-slate-500 truncate">{{ n.course_title }}</p>
               <h3 class="font-semibold text-slate-800 truncate">{{ n.lesson_title }}</h3>
             </div>
             <button class="p-1.5 rounded-lg hover:bg-rose-50 text-rose-400 shrink-0" aria-label="Delete note" @click="removeNote(n)"><Trash2 class="w-4 h-4" /></button>
           </div>
           <p class="mt-2 text-sm text-slate-700 whitespace-pre-wrap break-words line-clamp-6">{{ n.body }}</p>
           <div class="mt-3 flex items-center justify-between gap-2">
-            <span class="text-xs text-slate-400">Updated {{ when(n.updated_at) }}</span>
+            <span class="text-xs text-slate-500">Updated {{ when(n.updated_at) }}</span>
             <NuxtLink :to="`/learn/${n.course_slug}/${n.lesson_id}`" class="text-sm font-semibold text-brand-700 hover:underline inline-flex items-center gap-1">
               Open lesson <ArrowRight class="w-3.5 h-3.5" />
             </NuxtLink>
@@ -99,9 +99,9 @@ const when = (iso: string) => new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLo
           <Bookmark class="w-4.5 h-4.5 text-amber-500 fill-amber-400 shrink-0" />
           <NuxtLink :to="`/learn/${b.course_slug}/${b.lesson_id}`" class="min-w-0 flex-1 group">
             <p class="font-medium text-slate-800 truncate group-hover:text-brand-700">{{ b.lesson_title }}</p>
-            <p class="text-xs text-slate-400 truncate">{{ b.course_title }} · saved {{ when(b.created_at) }}</p>
+            <p class="text-xs text-slate-500 truncate">{{ b.course_title }} · saved {{ when(b.created_at) }}</p>
           </NuxtLink>
-          <button class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 shrink-0" aria-label="Remove bookmark" @click="removeBookmark(b)"><Trash2 class="w-4 h-4" /></button>
+          <button class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 shrink-0" aria-label="Remove bookmark" @click="removeBookmark(b)"><Trash2 class="w-4 h-4" /></button>
         </div>
       </div>
     </template>

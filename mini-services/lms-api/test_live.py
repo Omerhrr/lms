@@ -39,7 +39,8 @@ O = {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 print("== scheduling ==")
 cid = requests.post(f"{BASE}/teach/courses", headers=S, json={"title": f"Live course {uuid.uuid4().hex[:4]}"}).json()["id"]
-requests.post(f"{BASE}/teach/courses/{cid}/sections", headers=S, json={"title": "Week 1"})
+_sec = requests.post(f"{BASE}/teach/courses/{cid}/sections", headers=S, json={"title": "Week 1"}).json()
+requests.post(f"{BASE}/teach/sections/{_sec['id']}/lessons", headers=S, json={"title": "Welcome", "type": "text"})
 requests.post(f"{BASE}/teach/courses/{cid}/publish", headers=S)
 requests.post(f"{BASE}/enrollments/{cid}", headers=L)
 
