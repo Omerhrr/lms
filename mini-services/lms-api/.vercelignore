@@ -7,3 +7,5 @@ test_*.py
 _testclient.py
 start.sh
 .env
+# Vercel finds the FastAPI app in app/main.py on its own; the old api/ entrypoint is not deployed
+api/
